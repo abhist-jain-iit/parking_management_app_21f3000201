@@ -1,7 +1,7 @@
 # Base model class with common fields and functionality
 
 from datetime import datetime
-from app import db
+from app.extensions import db
 
 class BaseModel(db.Model):
     # __abstract__ = True means this won't create a table in the database.

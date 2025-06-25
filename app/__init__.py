@@ -1,4 +1,4 @@
-from flask import Flask , render_template , redirect , request
+from flask import Flask , render_template
 from config import config
 from app.extensions import db
 
@@ -21,6 +21,3 @@ def create_app(config_name = 'default'):
         return render_template("home.html")
     return app
 
-# Register models
-from . import models
-__all__ = ['db']

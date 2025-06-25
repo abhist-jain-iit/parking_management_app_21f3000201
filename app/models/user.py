@@ -1,4 +1,5 @@
-from app import db
+from app.extensions import db 
+import re
 from app.models.base import BaseModel
 from datetime import datetime
 from app.models.enums import UserStatus , RoleType , GenderEnum
@@ -45,10 +46,27 @@ class User(BaseModel):
     failed_login_attempts = db.Column(db.Integer, default=0)
 
     roles = db.relationship('UserRole' , back_populates = 'user' , foreign_keys='UserRole.user_id', cascade='all, delete', passive_deletes=True)
-
+    
+    def validate_email(email):
+        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        return re.match(pattern, email) is not None
     # Let's define some functions.
+    def validate_password(self,password):
+        if len(password) < 8 :
+            return False, "Password must be at least 8 characters long"
+        if not re.search(r"[A-Z]", password):
+            return False, "Password must contain at least one uppercase letter"
+        if not re.search(r"[a-z]", password):
+            return False, "Password must contain at least one lowercase letter"
+        if not re.search(r"\d", password):
+            return False, "Password must contain at least one digit"
+        return True, "Valid password"
+
     # Set password
     def set_password(self,password):
+        is_valid, message = self.validate_password(password)
+        if not is_valid:
+            raise ValueError(message)
         self.password_hash = generate_password_hash(password)
 
     # Check Password
@@ -64,7 +82,18 @@ class User(BaseModel):
             "status": self.status.value,
             "roles": [ur.role.name for ur in self.roles]
         }
-
+    
+    # Add account lockout protection
+    def increment_failed_login(self):
+        self.failed_login_attempts += 1
+        if self.failed_login_attempts >= 5:
+            self.status = UserStatus.SUSPENDED
+        db.session.commit()
+    
+    def reset_failed_login(self):
+        self.failed_login_attempts = 0
+        self.last_login = datetime.utcnow()
+        db.session.commit()
 
     def __repr__(self):
         return f'<User {self.f_name} {self.l_name}>'

@@ -13,7 +13,7 @@ def test_database():
         user_count = User.query.count()
         role_count = Role.query.count()
         admin = User.query.filter_by(user_name='admin').first()
-        # Admin check.
+        # User and Admin check.
         return f"Users: {user_count}, Roles: {role_count}, Admin Exists: {'Yes' if admin else 'No'}"
     except Exception as e:
         print(f"Error creating app: {e}")

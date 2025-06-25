@@ -3,9 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
+    <title>ParkEase - Login</title>
+    <link rel="stylesheet" href="../static/css/form.css">
 </head>
 <body>
-    hey
+    <div class="bg-shapes">
+        <div class="shape"></div>
+        <div class="shape"></div>
+        <div class="shape"></div>
+    </div>
+
+    <button class="back-home" onclick="goHome()">← Back to Home</button>
+
+    <div class="container">
+        <div class="logo">🅿️</div>
+
+        <!-- Login Form -->
+        <div class="form-page active">
+            <h2 class="form-title">Welcome Back</h2>
+            <p class="form-subtitle">Sign in to your ParkEase account</p>
+
+            <form id="loginFormElement" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label for="loginEmail">Email or Username</label>
+                    <input type="text" id="loginEmail" name="loginEmail" placeholder="Enter your email or username" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="loginPassword">Password</label>
+                    <input type="password" id="loginPassword" name="loginPassword" placeholder="Enter your password" required>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Sign In</button>
+                
+                <div class="error-message" id="loginError"></div>
+                <div class="success-message" id="loginSuccess"></div>
+            </form>
+
+            <div class="form-switch">
+                <p>Don't have an account?</p>
+                <button type="button" class="btn btn-switch" onclick="showSignup()">Create Account</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="../static/js/form.js"></script>
 </body>
 </html>

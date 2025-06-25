@@ -1,8 +1,7 @@
-from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
+from flask import Flask , render_template , redirect , request
 from config import config
+from app.extensions import db
 
-db = SQLAlchemy()
 
 def create_app(config_name = 'default'):
 
@@ -19,10 +18,9 @@ def create_app(config_name = 'default'):
 
     @app.route('/')
     def index():
-        return '''
-                <h1>🚗 Parking App is Running!</h1>
-                <p>Step 1 completed successfully!</p>
-                <p>Next: We'll add database models and authentication</p>
-            '''
+        return render_template("home.html")
     return app
 
+# Register models
+from . import models
+__all__ = ['db']

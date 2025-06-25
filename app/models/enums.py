@@ -23,8 +23,16 @@ class RoleType(Enum):
 
     @classmethod
     def get_choices(cls):
-        return [(role.value , role.value.replace('_', ' ').title())for role in cls]
+        return [(role.value , role.value.replace('_', ' ').title()) for role in cls]
 
+class GenderEnum(Enum):
+    MALE = "male"
+    FEMALE = "female"
+    OTHER = "other"
+
+    @classmethod
+    def get_choices(cls):
+        return [(status.value , status.value.title()) for status in cls]
 
 class ParkingLotStatus(Enum):
     # Parking lot status enumeration.

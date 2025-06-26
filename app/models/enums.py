@@ -74,3 +74,38 @@ class ReservationStatus(Enum):
     @classmethod
     def get_choices(cls):
         return [(status.value, status.value.replace('_', ' ').title()) for status in cls]
+
+
+class PermissionType(Enum):
+    # Permission enumeration
+
+    # Admin permissions
+    MANAGE_USERS = "manage_users"
+    MANAGE_ROLES = "manage_roles"
+    MANAGE_GEOGRAPHY = "manage_geography"
+    MANAGE_PARKING_LOTS = "manage_parking_lots"
+    MANAGE_PARKING_SPOTS = "manage_parking_spots"
+    VIEW_ALL_RESERVATIONS = "view_all_reservations"
+    VIEW_ANALYTICS = "view_analytics"
+    SYSTEM_ADMIN = "system_admin"
+
+    # User Permissions
+    MAKE_RESERVATION = "make_reservation"
+    VIEW_OWN_RESERVATIONS = "view_own_reservations"
+    CANCEL_RESERVATION = "cancel_reservation"
+    VIEW_AVAILABLE_LOTS = "view_available_lots"
+    UPDATE_PROFILE = "update_profile"
+
+    @classmethod
+    def get_choices(cls):
+        return [(status.value , status.value.replace('_' , ' ').title()) for status in cls]
+
+
+class GeographyStatus(Enum):
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+    DELETED = "deleted"
+
+    @classmethod
+    def get_choices(cls):
+        return [(status.value, status.value.title()) for status in cls]

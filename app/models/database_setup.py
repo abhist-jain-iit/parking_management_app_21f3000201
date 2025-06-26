@@ -1,5 +1,9 @@
 from app.extensions import db
-from app.models import  User , Role,  RoleType, UserStatus , GenderEnum
+from app.models import (User, Role, PermissionType, RolePermission,
+                       Permission, 
+                       Continent, Country, State, City)
+from app.models.enums RoleType, GenderEnum, UserStatus
+from app.utils.geography_data import GEOGRAPHY_DATA
 
 def init_database(app):
     # Initialize database with tables and default data

@@ -3,7 +3,7 @@ from app.extensions import db
 from datetime import datetime
 from app.models import User, Role , RoleType , UserStatus
 
-auth_bp = Blueprint('auth' , __name__)
+auth_bp = Blueprint('auth' , __name__) 
 
 @auth_bp.route('/login.html')
 def login():

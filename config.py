@@ -8,8 +8,8 @@ load_dotenv()
 class Config:
     # Contains settings that are common across all environments.
 
-    # On windows use "set SECRET_KEY = ABHIST_JAIN" to set our secret key if no .env file is there.
-    SECRET_KEY = os.environ.get("SECRET_KEY", "default_dev_secret")
+    # On windows we can use "set SECRET_KEY = ABHIST_JAIN" to set our secret key if no .env file is there.
+    SECRET_KEY = os.environ.get("SECRET_KEY", "DEFAULT_SECRET")
 
     # Now Database Configuration
     # Here lets find out the Base Path first.
@@ -29,10 +29,14 @@ class DevelopmentConfig(Config):
 class ProductionConfig(Config):
     DEBUG = False
 
+class DefaultConfig(Config):
+    # Default configuration, can be used if no specific environment is set.
+    DEBUG = True
+
 config = {
     'development' : DevelopmentConfig,
     'production' : ProductionConfig,
-    'default' : DevelopmentConfig
+    'default' : DefaultConfig
 }
 
 

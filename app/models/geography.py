@@ -1,3 +1,4 @@
+# Geography models for location management
 from app.models.enums import GeographyStatus
 from app.extensions import db
 from app.models.base import BaseModel
@@ -5,12 +6,18 @@ from app.models.base import BaseModel
 class Continent(BaseModel):
     __tablename__ = "continents"
 
+    # Basic information
     name = db.Column(db.String(100), unique=True, nullable=False)
     code = db.Column(db.String(10), unique=True, nullable=False)
     status = db.Column(db.Enum(GeographyStatus), default=GeographyStatus.ACTIVE, nullable=False)
 
     # Relationships
-    countries = db.relationship('Country', back_populates='continent', cascade='all, delete', passive_deletes=True)
+    countries = db.relationship('Country', back_populates='continent', cascade='all, delete-orphan')
+
+       
+    # Get count of active countries
+    def get_countries_count(self):
+        return Country.query.filter_by(continent_id=self.id, status=GeographyStatus.ACTIVE).count()
     
     def to_dict(self):
         base_dict = super().to_dict()
@@ -18,7 +25,7 @@ class Continent(BaseModel):
             "name": self.name,
             "code": self.code,
             "status": self.status.value,
-            "countries_count": len([c for c in self.countries if not c.is_deleted])
+            "countries_count": self.get_countries_count()
         })
         return base_dict
 
@@ -28,16 +35,25 @@ class Continent(BaseModel):
 class Country(BaseModel):
     __tablename__ = "countries"
     
+    # Basic information
     name = db.Column(db.String(100), nullable=False)
-    code = db.Column(db.String(10), nullable=False)  # ISO country code e.g., 'IN' for India
+    code = db.Column(db.String(3), nullable=False)  # ISO codes like USA, IND
     continent_id = db.Column(db.Integer, db.ForeignKey('continents.id'), nullable=False)
     status = db.Column(db.Enum(GeographyStatus), default=GeographyStatus.ACTIVE, nullable=False)
     
     # Relationships
     continent = db.relationship('Continent', back_populates='countries')
-    states = db.relationship('State', back_populates='country', cascade='all, delete', passive_deletes=True)
+    states = db.relationship('State', back_populates='country', cascade='all, delete-orphan')
     
-    __table_args__ = (db.UniqueConstraint('name', 'continent_id', name='unique_country_per_continent'),)
+    # Unique constraints
+    __table_args__ = (
+        db.UniqueConstraint('name', 'continent_id', name='unique_country_per_continent'),
+        db.UniqueConstraint('code', name='unique_country_code')
+    )
+    
+    # Get count of active states
+    def get_states_count(self):
+        return State.query.filter_by(country_id=self.id, status=GeographyStatus.ACTIVE).count()
     
     def to_dict(self):
         base_dict = super().to_dict()
@@ -46,7 +62,7 @@ class Country(BaseModel):
             "code": self.code,
             "continent_name": self.continent.name if self.continent else None,
             "status": self.status.value,
-            "states_count": len([s for s in self.states if not s.is_deleted])
+            "states_count": self.get_states_count()
         })
         return base_dict
 
@@ -56,16 +72,25 @@ class Country(BaseModel):
 class State(BaseModel):
     __tablename__ = "states"
     
+    # Basic information
     name = db.Column(db.String(100), nullable=False)
-    code = db.Column(db.String(10), nullable=False)  # State code e.g., 'KA' for Karnataka
+    code = db.Column(db.String(10), nullable=False)  # State code like 'KA' for Karnataka
     country_id = db.Column(db.Integer, db.ForeignKey('countries.id'), nullable=False)
     status = db.Column(db.Enum(GeographyStatus), default=GeographyStatus.ACTIVE, nullable=False)
     
     # Relationships
     country = db.relationship('Country', back_populates='states')
-    cities = db.relationship('City', back_populates='state', cascade='all, delete', passive_deletes=True)
+    cities = db.relationship('City', back_populates='state', cascade='all, delete-orphan')
     
-    __table_args__ = (db.UniqueConstraint('name', 'country_id', name='unique_state_per_country'),)
+    # Unique constraints
+    __table_args__ = (
+        db.UniqueConstraint('name', 'country_id', name='unique_state_per_country'),
+        db.UniqueConstraint('code', 'country_id', name='unique_state_code_per_country')
+    )
+    
+    # Get count of active cities
+    def get_cities_count(self):
+        return City.query.filter_by(state_id=self.id, status=GeographyStatus.ACTIVE).count()
     
     def to_dict(self):
         base_dict = super().to_dict()
@@ -74,7 +99,7 @@ class State(BaseModel):
             "code": self.code,
             "country_name": self.country.name if self.country else None,
             "status": self.status.value,
-            "cities_count": len([c for c in self.cities if not c.is_deleted])
+            "cities_count": self.get_cities_count()
         })
         return base_dict
 
@@ -84,18 +109,24 @@ class State(BaseModel):
 class City(BaseModel):
     __tablename__ = "cities"
     
+    # Basic information
     name = db.Column(db.String(100), nullable=False)
     state_id = db.Column(db.Integer, db.ForeignKey('states.id'), nullable=False)
     pin_code = db.Column(db.String(20), nullable=True)  # Optional pincode
-    latitude = db.Column(db.Float, nullable=True)
-    longitude = db.Column(db.Float, nullable=True)
-    status = db.Column(db.Enum(GeographyStatus), default=GeographyStatus.ACTIVE, nullable=False)
+    status = db.Column(db.Enum(GeographyStatus), default=GeographyStatus.ACTIVE, nullable=False)   
     
     # Relationships
     state = db.relationship('State', back_populates='cities')
-    # parking_lots will be added in next step
+    parking_lots = db.relationship('ParkingLot', back_populates='city')  # Connection to parking system
     
+    # Unique constraint
     __table_args__ = (db.UniqueConstraint('name', 'state_id', name='unique_city_per_state'),)
+    
+    # Get full address path
+    def get_full_address(self):
+        if self.state and self.state.country:
+            return f"{self.name}, {self.state.name}, {self.state.country.name}"
+        return self.name
     
     def to_dict(self):
         base_dict = super().to_dict()
@@ -104,8 +135,7 @@ class City(BaseModel):
             "state_name": self.state.name if self.state else None,
             "country_name": self.state.country.name if self.state and self.state.country else None,
             "pin_code": self.pin_code,
-            "latitude": self.latitude,
-            "longitude": self.longitude,
+            "full_address": self.get_full_address(),
             "status": self.status.value
         })
         return base_dict

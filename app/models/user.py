@@ -14,7 +14,6 @@ class Role(BaseModel):
     name = db.Column(db.String(100), nullable=False, unique=True)
     # Role description
     description = db.Column(db.Text, nullable=True)
-
     # Relationship to users through UserRole
     user_roles = db.relationship('UserRole', back_populates='role', cascade='all, delete-orphan')
     # Relationship to permissions through RolePermission

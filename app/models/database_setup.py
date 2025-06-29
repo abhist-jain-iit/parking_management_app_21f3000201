@@ -6,33 +6,12 @@ from app.models import (
     ParkingLot, ParkingSpot, Reservation, ParkingLotStatus, SpotStatus
 )
 from decimal import Decimal
+from app.Data.data import GEOGRAPHY_DATA , parking_lots_data , permissions_data 
 
-# Geography data for initialization
-GEOGRAPHY_DATA = {
-    'continents': [
-        {'name': 'Asia', 'code': 'AS'}
-    ],
-    'countries': {
-        'Asia': [{'name': 'India', 'code': 'IN'}],
-    },
-    'states': {
-        'India': [
-            {'name': 'Karnataka', 'code': 'KA'},
-            {'name': 'Maharashtra', 'code': 'MH'},
-            {'name': 'Tamil Nadu', 'code': 'TN'}
-        ]
-    },
-    'cities': {
-        'Karnataka': [
-            {'name': 'Bengaluru', 'pin_code': '560001'},
-            {'name': 'Mysuru', 'pin_code': '570001'}
-        ]
-    }
-}
 
 def create_roles():
+
     print("Creating default roles...")
-    
     # Admin role
     admin_role = Role.query.filter_by(name=RoleType.ADMIN.value).first()
     if not admin_role:
@@ -72,7 +51,7 @@ def create_admin_user():
             username='admin',
             first_name='System',
             last_name='Administrator',
-            phone='9999999999',
+            phone='+911234567890',
             gender=GenderEnum.OTHER,
             status=UserStatus.ACTIVE
         )
@@ -100,24 +79,6 @@ def create_permissions():
     # Create system permissions
     print("Creating permissions...")
     
-    permissions_data = [
-        # Admin permissions
-        ('Manage Users', PermissionType.MANAGE_USERS, 'Access and manage all registered users'),
-        ('Manage Parking', PermissionType.MANAGE_PARKING, 'Create, edit, delete parking lots and manage parking spots'),
-        ('View Analytics', PermissionType.VIEW_ANALYTICS, 'Access system analytics and summary charts'),
-        ('View Parking Details', PermissionType.VIEW_PARKING_DETAILS, 'View parked vehicle details for occupied spots'),
-        ('Search Parking Spots', PermissionType.SEARCH_PARKING_SPOTS, 'Search for specific parking spots and check occupancy'),
-        ('Full System Access', PermissionType.FULL_SYSTEM_ACCESS, 'Root access to all system functionalities'),
-        
-        # User permissions
-        ('Make Reservation', PermissionType.MAKE_RESERVATION, 'Book and reserve parking spots'),
-        ('View Reservations', PermissionType.VIEW_RESERVATIONS, 'View personal reservation history and current bookings'),
-        ('Cancel Reservation', PermissionType.CANCEL_RESERVATION, 'Cancel own reservations'),
-        ('Park Vehicle', PermissionType.PARK_VEHICLE, 'Change spot status to occupied when parking'),
-        ('Release Parking Spot', PermissionType.RELEASE_PARKING_SPOT, 'Vacate and release parking spot'),
-        ('View Personal Summary', PermissionType.VIEW_PERSONAL_SUMMARY, 'View personal parking history and summary charts'),
-    ]
-    
     created_permissions = []
     for name, perm_type, description in permissions_data:
         existing_permission = Permission.query.filter_by(permission_type=perm_type).first()
@@ -137,60 +98,80 @@ def create_permissions():
     db.session.commit()
     return created_permissions
 
-def assign_permissions_to_roles(admin_user):
-    """Assign permissions to roles"""
+
+def assign_permissions_to_roles():
+    # Assign permissions to roles (not individual users).
     print("Assigning permissions to roles...")
     
+    # Get all roles
     admin_role = Role.query.filter_by(name=RoleType.ADMIN.value).first()
     user_role = Role.query.filter_by(name=RoleType.USER.value).first()
     
-    # Admin gets all permissions
-    if admin_role:
-        all_permissions = Permission.query.all()
-        for permission in all_permissions:
-            existing_role_perm = RolePermission.query.filter_by(
+    if not admin_role or not user_role:
+        print("Error: Required roles not found!")
+        return
+    
+    # Assign ALL permissions to Admin role
+    print(f"Assigning permissions to Admin role...")
+    all_permissions = Permission.query.all()
+    admin_permissions_added = 0
+    
+    for permission in all_permissions:
+        existing_role_perm = RolePermission.query.filter_by(
+            role_id=admin_role.id,
+            permission_id=permission.id
+        ).first()
+        
+        if not existing_role_perm:
+            role_permission = RolePermission(
                 role_id=admin_role.id,
                 permission_id=permission.id
-            ).first()
-            
-            if not existing_role_perm:
-                role_permission = RolePermission(
-                    role_id=admin_role.id,
-                    permission_id=permission.id
-                )
-                db.session.add(role_permission)
-        print("✓ Assigned all permissions to admin role")
+            )
+            db.session.add(role_permission)
+            admin_permissions_added += 1
     
-    # User gets basic permissions
-    if user_role:
-        user_permission_types = [
-            PermissionType.MAKE_RESERVATION,
-            PermissionType.VIEW_RESERVATIONS,
-            PermissionType.CANCEL_RESERVATION
-        ]
+    print(f"✓ Added {admin_permissions_added} permissions to Admin role")
+    
+    # Assign BASIC permissions to User role
+    print(f"Assigning permissions to User role...")
+    user_permission_types = [
+        PermissionType.MAKE_RESERVATION,
+        PermissionType.VIEW_RESERVATIONS,
+        PermissionType.CANCEL_RESERVATION,
+        PermissionType.PARK_VEHICLE,
+        PermissionType.RELEASE_PARKING_SPOT,
+        PermissionType.VIEW_PERSONAL_SUMMARY,
+        PermissionType.SEARCH_PARKING_SPOTS,
+    ]
+    
+    user_permissions = Permission.query.filter(
+        Permission.permission_type.in_(user_permission_types)
+    ).all()
+    
+    user_permissions_added = 0
+    for permission in user_permissions:
+        existing_role_perm = RolePermission.query.filter_by(
+            role_id=user_role.id,
+            permission_id=permission.id
+        ).first()
         
-        user_permissions = Permission.query.filter(
-            Permission.permission_type.in_(user_permission_types)
-        ).all()
-        
-        for permission in user_permissions:
-            existing_role_perm = RolePermission.query.filter_by(
+        if not existing_role_perm:
+            role_permission = RolePermission(
                 role_id=user_role.id,
                 permission_id=permission.id
-            ).first()
-            
-            if not existing_role_perm:
-                role_permission = RolePermission(
-                    role_id=user_role.id,
-                    permission_id=permission.id
-                )
-                db.session.add(role_permission)
-        print("✓ Assigned basic permissions to user role")
+            )
+            db.session.add(role_permission)
+            user_permissions_added += 1
     
+    print(f"✓ Added {user_permissions_added} permissions to User role")
+    
+    # Commit all changes
     db.session.commit()
+    print("✓ Successfully assigned permissions to roles")
+
 
 def create_geography_data():
-    """Initialize geography data"""
+    # Initialize geography data.
     print("Creating geography data...")
     
     for continent_data in GEOGRAPHY_DATA['continents']:
@@ -246,34 +227,10 @@ def create_geography_data():
     db.session.commit()
 
 def create_sample_parking_data():
-    """Create sample parking lots and spots"""
+    # Create sample parking lots and spots.
     print("Creating sample parking data...")
     
-    # Sample parking lots for different cities
-    parking_lots_data = [
-        {
-            'name': 'Central Mall Parking',
-            'address': 'MG Road, Bengaluru, Karnataka',
-            'city_name': 'Bengaluru',
-            'total_spots': 50,
-            'price_per_hour': Decimal('25.00')
-        },
-        {
-            'name': 'Tech Park Parking',
-            'address': 'Electronic City, Bengaluru, Karnataka',
-            'city_name': 'Bengaluru',
-            'total_spots': 100,
-            'price_per_hour': Decimal('20.00')
-        },
-        {
-            'name': 'Airport Parking',
-            'address': 'Kempegowda International Airport, Bengaluru',
-            'city_name': 'Bengaluru',
-            'total_spots': 200,
-            'price_per_hour': Decimal('50.00')
-        }
-    ]
-    
+   
     for lot_data in parking_lots_data:
         city = City.query.filter_by(name=lot_data['city_name']).first()
         if city:
@@ -307,7 +264,7 @@ def create_sample_parking_data():
     db.session.commit()
 
 def init_database(app):
-    """Initialize database with all required data"""
+    """Updated initialization function"""
     with app.app_context():
         try:
             print("=" * 50)
@@ -322,14 +279,14 @@ def init_database(app):
             # Create roles
             admin_role, user_role = create_roles()
             
-            # Create admin user
-            admin_user = create_admin_user()
-            
             # Create permissions
             create_permissions()
             
-            # Assign permissions to roles
-            assign_permissions_to_roles(admin_user)
+            # Assign permissions to roles (NOT individual users)
+            assign_permissions_to_roles()
+            
+            # Create admin user (this should come after role permissions are set)
+            admin_user = create_admin_user()
             
             # Create geography data
             create_geography_data()
@@ -346,6 +303,8 @@ def init_database(app):
             print(f"   Roles: {Role.query.count()}")
             print(f"   Users: {User.query.count()}")
             print(f"   Permissions: {Permission.query.count()}")
+            print(f"   Role-Permission Assignments: {RolePermission.query.count()}")
+            print(f"   User-Role Assignments: {UserRole.query.count()}")
             print(f"   Continents: {Continent.query.count()}")
             print(f"   Countries: {Country.query.count()}")
             print(f"   States: {State.query.count()}")

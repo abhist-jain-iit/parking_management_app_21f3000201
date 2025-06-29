@@ -7,7 +7,6 @@ from decimal import Decimal
 
 class ParkingLot(BaseModel):
     __tablename__ = "parking_lots"
-    
     # Basic information
     name = db.Column(db.String(200), nullable=False)
     address = db.Column(db.Text, nullable=False)

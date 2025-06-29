@@ -77,6 +77,7 @@ class State(BaseModel):
     code = db.Column(db.String(10), nullable=False)  # State code like 'KA' for Karnataka
     country_id = db.Column(db.Integer, db.ForeignKey('countries.id'), nullable=False)
     status = db.Column(db.Enum(GeographyStatus), default=GeographyStatus.ACTIVE, nullable=False)
+   
     
     # Relationships
     country = db.relationship('Country', back_populates='states')

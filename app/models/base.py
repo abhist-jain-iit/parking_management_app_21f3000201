@@ -23,7 +23,6 @@ class BaseModel(db.Model):
         self.is_deleted = True
         if commit:
             db.session.commit()
-
     
     # Restore deleted record
     def restore(self):

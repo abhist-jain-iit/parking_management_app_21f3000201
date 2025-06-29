@@ -2,7 +2,8 @@
 from .base import BaseModel
 from .enums import (
     UserStatus, RoleType, GenderEnum, ParkingLotStatus, 
-    SpotStatus, ReservationStatus, PermissionType, GeographyStatus
+    SpotStatus, ReservationStatus, PermissionType, 
+    GeographyStatus
 )
 from .user import User, Role, UserRole
 from .permissions import Permission, RolePermission

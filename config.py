@@ -22,6 +22,13 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     DEBUG = True
 
+    # JWT Config
+    JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "my_jwt_secret")
+    JWT_TOKEN_LOCATION = ['headers']
+    JWT_HEADER_NAME = 'Authorization'
+    JWT_HEADER_TYPE = 'Bearer'
+
+
 class DevelopmentConfig(Config):
     # Inherits from base Config class
     DEBUG = True

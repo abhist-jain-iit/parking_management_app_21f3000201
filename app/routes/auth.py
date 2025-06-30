@@ -1,9 +1,10 @@
-from flask import Blueprint, render_template , redirect , request , url_for, flash, session , jsonify
+from flask import Blueprint, render_template, redirect, request, url_for, flash, session, jsonify, current_app
 from app.extensions import db
 from datetime import datetime
 from app.models import *
+from flask_jwt_extended import create_access_token, verify_jwt_in_request, get_jwt_identity, get_jwt
 
-auth_bp = Blueprint('auth' , __name__) 
+auth_bp = Blueprint('auth', __name__)
 
 # Now here lets create the route for Login.
 
@@ -13,40 +14,69 @@ def login():
     # username = data.get('username')
     # return jsonify({'error': 'Username and password are required!'}), 400
     #  Lets keep a Common login for both admin and users
+    # print(f"Request headers: {dict(request.headers)}")
+    # print(f"Request content type: {request.content_type}")
     if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
+        # Handle both JSON and form data
+        if request.is_json:
+            data = request.get_json()
+            username = data.get('username')
+            password = data.get('password')
+        else:
+            username = request.form.get('username')
+            password = request.form.get('password')
+            
         if not username or not password:
+            if request.is_json:
+                return jsonify({'error': 'Username and password are required!'}), 400
             flash("Username and password are required!")
-            print("Username and password are required!")
-            return render_template('/auth/login.html')
+            return render_template('auth/login.html')
+
         # Check if admin
         if username == 'admin':
-            admin = User.query.filter_by(username = 'admin').first()
+            admin = User.query.filter_by(username='admin').first()
             if admin and admin.check_password(password):
                 session['user_id'] = admin.id
                 session['user_role'] = 'admin'
                 session['username'] = admin.username
-                flash("Congrats! You are logged in as Admin, Welcome!")
-                print("Congrats! You are logged in as Admin, Welcome!")
-                return redirect(url_for('admin_dashboard'))
+                
+                if request.is_json:
+                    return jsonify({
+                        'message': 'Admin login successful',
+                        'redirect': url_for('admin.admin_dashboard')
+                    })
+                
+                flash("Welcome Admin! You are logged in successfully.")
+                return redirect(url_for('admin.admin_dashboard'))
             else:
+                if request.is_json:
+                    return jsonify({'error': 'Invalid admin credentials!'}), 401
                 flash("Invalid admin credentials!")
-                return render_template('/auth/login.html')
+                return render_template('auth/login.html')
         else:
-            user = User.query.filter_by(username = username).first()
+            # Regular user login
+            user = User.query.filter_by(username=username).first()
             if user and user.check_password(password):
                 session['user_id'] = user.id
                 session['user_role'] = 'user'
                 session['username'] = user.username
-                flash(f"Congrats! You have successfully logged in as: {user.first_name}")
-                print(f"Congrats! You have successfully logged in as: {user.first_name}")
-                return redirect(url_for('user_dashboard'))
+                
+                if request.is_json:
+                    return jsonify({
+                        'message': f'Login successful! Welcome {user.first_name}',
+                        'redirect': url_for('main.index')  # Fixed: use main.index
+                    })
+                
+                flash(f"Welcome {user.first_name}! You have successfully logged in.")
+                return redirect(url_for('main.index'))  # Fixed: redirect to main page
             else:
+                if request.is_json:
+                    return jsonify({'error': 'Invalid username or password!'}), 401
                 flash("Invalid username or password!")
-                print("Invalid username or password!")
-                return render_template('/auth/login.html')
-    return render_template('/auth/login.html')
+                return render_template('auth/login.html')
+                
+    return render_template('auth/login.html')
+    
 
 
 @auth_bp.route('/signup' , methods=['GET', 'POST'])
@@ -58,14 +88,20 @@ def signup():
     #  This route is for user registration.
     
     if request.method == 'POST':
-        first_name = request.form.get('first_name')
-        last_name = request.form.get('last_name')
-        username = request.form.get('username')
-        email = request.form.get('email')
-        phone = request.form.get('phone')
-        password = request.form.get('password')
-        gender = request.form.get('gender')
-        confirm_password = request.form.get('confirm_password')
+        # Handle both JSON and form data
+        if request.is_json:
+            data = request.get_json()
+        else:
+            data = request.form.to_dict()
+            
+        first_name = data.get('first_name')
+        last_name = data.get('last_name')
+        username = data.get('username')
+        email = data.get('email')
+        phone = data.get('phone')
+        password = data.get('password')
+        gender = data.get('gender')
+        confirm_password = data.get('confirm_password')
         
         # Validation errors list
         errors = []
@@ -100,11 +136,8 @@ def signup():
         
         if email and User.query.filter_by(email=email).first():
             errors.append("Email already registered")
-        
-        # if phone and User.query.filter_by(phone=phone).first():
-        #     errors.append("Phone number already registered")
 
-        # Gender validation                           "gender is "male", GenderEnum("male") returns GenderEnum.MALE"
+        # Gender validation
         if gender:
             try:
                 gender_enum = GenderEnum(gender)
@@ -134,9 +167,15 @@ def signup():
                 db.session.add(new_user)
                 db.session.commit()
                 
-                # Success message
+                # Success response
+                if request.is_json:
+                    return jsonify({
+                        'message': 'Registration successful! You can now log in.',
+                        'redirect': url_for('auth.login')
+                    })
+
                 # jsonify({"first_name" : "Abhist","last_name" : "Jain", "username" : "abhist","email" : "abhistjain@gmail.com","phone" : "+918303776445", "gender" : "male"})
-                print('Registration successful! You can now log in.', 'success')
+                
                 flash('Registration successful! You can now log in.', 'success')
                 return redirect(url_for('auth.login'))
                 
@@ -148,23 +187,26 @@ def signup():
                 # Database or other errors
                 errors.append("Registration failed. Please try again.")
                 db.session.rollback()
-                # Log the actual error for debugging
-                app.logger.error(f"Registration error: {str(e)}")
+                current_app.logger.error(f"Registration error: {str(e)}")
 
-        # If there are errors, flash them and return to form
+        # If there are errors, return them
         if errors:
+            if request.is_json:
+                return jsonify({'errors': errors}), 400
+                
             for error in errors:
-                print(error, 'error')
                 flash(error, 'error')
             
             # Return form with preserved data (except passwords)
-            return render_template('auth/signup.html', first_name=first_name,
+            return render_template('auth/signup.html', 
+                                 first_name=first_name,
                                  last_name=last_name,
                                  username=username,
                                  email=email,
                                  phone=phone,
                                  gender=gender)
-    return render_template('/auth/signup.html')
+                                 
+    return render_template('auth/signup.html')
 
 
 @auth_bp.route('/logout', methods=['GET', 'POST'])

@@ -1,10 +1,10 @@
-from flask import Blueprint, render_template , redirect , request , url_for, flash, session , jsonify
+from flask import Blueprint, render_template, redirect, request, url_for, flash, session, jsonify
 from app.extensions import db
-from datetime import datetime , timedelta
+from datetime import datetime, timedelta
 from app.models import *
 import json
-from app.decorators import require_permission # for permission
-from sqlalchemy import func , or_
+from app.decorators import require_permission
+from sqlalchemy import func, or_
 from decimal import Decimal
 from functools import wraps
 
@@ -42,6 +42,7 @@ def admin_dashboard():
         # db.session.commit()
         # Date reference
         today = datetime.now().date()
+        
         # Reservation revenue
         today_revenue = db.session.query(func.sum(Reservation.total_cost)).filter(
             func.date(Reservation.created_at) == today,
@@ -61,7 +62,6 @@ def admin_dashboard():
             Reservation.created_at.desc()
         ).limit(10).all()
 
-
         # Geographic stats
         total_continents = Continent.query.count()
         total_countries = Country.query.count()
@@ -77,7 +77,6 @@ def admin_dashboard():
         available_spots = ParkingSpot.count_available()
         reserved_spots = ParkingSpot.count_reserved()
         occupied_spots = ParkingSpot.count_occupied()
-
 
         # Dashboard statistics dictionary
         stats = {
@@ -98,21 +97,22 @@ def admin_dashboard():
             'occupancy_rate': round((occupied_spots / total_parking_spots * 100), 2)
                               if total_parking_spots > 0 else 0
         }
+
         # Jsonify for texting on postman
         # return jsonify({
         #     'stats': stats,
         #     'recent_reservations': [res.to_dict() for res in recent_reservations]
         # })
-        return render_template('admin_dashboard.html',
+
+        return render_template('admin/dashboard.html',
                                stats=stats,
                                recent_reservations=recent_reservations)
 
     except Exception as e:
         flash(f"Error loading dashboard: {str(e)}", "error")
-        return render_template('admin_dashboard.html',
+        return render_template('dashboards/admin_dashboard.html',
                                stats={},
                                recent_reservations=[])
-
 
 
 # Result i got on testing which is correct hence test passed.
@@ -138,48 +138,50 @@ def admin_dashboard():
 # }
 
 @admin_bp.route('/users')
-# @require_permission(PermissionType.MANAGE_USERS.value)
+@require_permission(PermissionType.MANAGE_USERS.value)
+@refresh_db_session
 def manage_users():
-    # Display all users with search and filter options.
+    """Display all users with search and filter options."""
     page = request.args.get('page', 1, type=int)
     search = request.args.get('search', '', type=str)
     role_filter = request.args.get('role', '', type=str)
 
     query = User.query.filter(User.username != 'admin')
-    print(f"1. Base query count (excluding admin): {query.count()}")
 
     if search:
         search_lower = search.lower()
-        print(f"Search term: {search_lower}")
-        
-        # Apply search filter to the existing query
         query = query.filter(or_(
             func.lower(User.username).contains(search_lower),
             func.lower(User.email).contains(search_lower),
             func.lower(User.first_name).contains(search_lower),
             func.lower(User.last_name).contains(search_lower)
         ))
-        print(f"2. After search filter count: {query.count()}")
         
     if role_filter:
-        # Fixed: Join through UserRole to Role
-        wquery = query.join(User.user_roles).join(UserRole.role).filter(func.lower(Role.name) == role_filter.lower())
+        query = query.join(User.user_roles).join(UserRole.role).filter(
+            func.lower(Role.name) == role_filter.lower()
+        )
     
     users = query.paginate(page=page, per_page=20, error_out=False)
     roles = Role.query.all()
-    # Convert users to dictionaries (you must define `to_dict()` in your User model)
-    users_list = [user.to_dict() for user in users.items]
-    roles_list = [role.name for role in roles]
-    print(users_list)
 
-    return jsonify({
-        "users": users_list,
-        "roles": roles_list,
-        "search": search,
-        "role_filter": role_filter,
-        "page": page
-    })
-
-    return render_template('admin/users/manage.html', users=users, roles=roles, 
-                         search=search, role_filter=role_filter)
+    # Check if it's an API request (JSON expected)
+    if request.headers.get('Content-Type') == 'application/json' or request.args.get('format') == 'json':
+        users_list = [user.to_dict() for user in users.items]
+        roles_list = [role.name for role in roles]
         
+        return jsonify({
+            "users": users_list,
+            "roles": roles_list,
+            "search": search,
+            "role_filter": role_filter,
+            "page": page,
+            "total_pages": users.pages,
+            "total_users": users.total
+        })
+
+    return render_template('admin/users/manage.html', 
+                          users=users, 
+                          roles=roles, 
+                          search=search, 
+                          role_filter=role_filter)

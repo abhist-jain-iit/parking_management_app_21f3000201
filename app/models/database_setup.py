@@ -224,7 +224,9 @@ def create_geography_data():
         else:
             print(f"✓ Continent already exists: {continent_data['name']}")
     
-    db.session.commit()
+    db.session.commit()  #Reason for doing db.flush() is that we dont want the changes to be permanently store in the db till the time whole loops gets over because it by any change exception occurs in between then in any case it wont enter the loop and will create the problem.
+    # Once all changes and steps we want to do are over we commit our changes.
+    
 
 def create_sample_parking_data():
     # Create sample parking lots and spots.

@@ -89,6 +89,13 @@ class ParkingSpot(BaseModel):
             db.session.rollback()
             raise e
     
+    def occupy(self):
+        self.status = SpotStatus.OCCUPIED
+        db.session.commit()
+    
+    def free(self):
+        self.status = SpotStatus.AVAILABLE
+        db.session.commit()
     
     @staticmethod
     def count_available():
@@ -115,14 +122,6 @@ class ParkingSpot(BaseModel):
         return ParkingSpot.query.filter_by(parking_lot_id=lot_id, status=SpotStatus.OCCUPIED).count()
 
 
-    
-    def occupy(self):
-        self.status = SpotStatus.OCCUPIED
-        db.session.commit()
-    
-    def free(self):
-        self.status = SpotStatus.AVAILABLE
-        db.session.commit()
 
     def to_dict(self):
         base_dict = super().to_dict()

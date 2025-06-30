@@ -4,7 +4,7 @@ from datetime import datetime , timedelta
 from app.models import *
 import json
 from app.decorators import require_permission # for permission
-from sqlalchemy import func
+from sqlalchemy import func , or_
 from decimal import Decimal
 from functools import wraps
 
@@ -20,13 +20,13 @@ def refresh_db_session(func):
 
 
 @admin_bp.route('/dashboard')
-# @require_permission(PermissionType.FULL_SYSTEM_ACCESS.value)
+@require_permission(PermissionType.FULL_SYSTEM_ACCESS.value)
 @refresh_db_session
 def admin_dashboard():
 
     # Main admin dashboard with overview statistics.
     try:
-        #  Use this dummy reservation to test that everything is working fine.
+        # Use this dummy reservation to test that everything is working fine.
         # dummy_reservation = Reservation(
         #     vehicle_number="TEST123",
         #     status=ReservationStatus.COMPLETED,
@@ -99,10 +99,10 @@ def admin_dashboard():
                               if total_parking_spots > 0 else 0
         }
         # Jsonify for texting on postman
-        return jsonify({
-            'stats': stats,
-            'recent_reservations': [res.to_dict() for res in recent_reservations]
-        })
+        # return jsonify({
+        #     'stats': stats,
+        #     'recent_reservations': [res.to_dict() for res in recent_reservations]
+        # })
         return render_template('admin_dashboard.html',
                                stats=stats,
                                recent_reservations=recent_reservations)
@@ -136,3 +136,50 @@ def admin_dashboard():
 #         "total_users": 1
 #     }
 # }
+
+@admin_bp.route('/users')
+# @require_permission(PermissionType.MANAGE_USERS.value)
+def manage_users():
+    # Display all users with search and filter options.
+    page = request.args.get('page', 1, type=int)
+    search = request.args.get('search', '', type=str)
+    role_filter = request.args.get('role', '', type=str)
+
+    query = User.query.filter(User.username != 'admin')
+    print(f"1. Base query count (excluding admin): {query.count()}")
+
+    if search:
+        search_lower = search.lower()
+        print(f"Search term: {search_lower}")
+        
+        # Apply search filter to the existing query
+        query = query.filter(or_(
+            func.lower(User.username).contains(search_lower),
+            func.lower(User.email).contains(search_lower),
+            func.lower(User.first_name).contains(search_lower),
+            func.lower(User.last_name).contains(search_lower)
+        ))
+        print(f"2. After search filter count: {query.count()}")
+        
+    if role_filter:
+        # Fixed: Join through UserRole to Role
+        wquery = query.join(User.user_roles).join(UserRole.role).filter(func.lower(Role.name) == role_filter.lower())
+    
+    users = query.paginate(page=page, per_page=20, error_out=False)
+    roles = Role.query.all()
+    # Convert users to dictionaries (you must define `to_dict()` in your User model)
+    users_list = [user.to_dict() for user in users.items]
+    roles_list = [role.name for role in roles]
+    print(users_list)
+
+    return jsonify({
+        "users": users_list,
+        "roles": roles_list,
+        "search": search,
+        "role_filter": role_filter,
+        "page": page
+    })
+
+    return render_template('admin/users/manage.html', users=users, roles=roles, 
+                         search=search, role_filter=role_filter)
+        

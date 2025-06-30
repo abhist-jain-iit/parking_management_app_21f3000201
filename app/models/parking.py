@@ -4,6 +4,8 @@ from app.models.base import BaseModel
 from app.models.enums import ParkingLotStatus, SpotStatus, ReservationStatus
 from datetime import datetime
 from decimal import Decimal
+from sqlalchemy import Numeric
+
 
 class ParkingLot(BaseModel):
     __tablename__ = "parking_lots"
@@ -63,7 +65,7 @@ class ParkingSpot(BaseModel):
     # Basic information
     spot_number = db.Column(db.String(10), nullable=False)
     parking_lot_id = db.Column(db.Integer, db.ForeignKey('parking_lots.id'), nullable=False)
-    status = db.Column(db.Enum(SpotStatus), default=SpotStatus.AVAILABLE, nullable=False)
+    status = db.Column(db.Enum(SpotStatus), default=SpotStatus.AVAILABLE.value, nullable=False)
     
     # Relationships
     parking_lot = db.relationship('ParkingLot', back_populates='parking_spots')
@@ -86,6 +88,32 @@ class ParkingSpot(BaseModel):
         except Exception as e:
             db.session.rollback()
             raise e
+    
+    
+    @staticmethod
+    def count_available():
+        return ParkingSpot.query.filter_by(status=SpotStatus.AVAILABLE).count()
+
+    @staticmethod
+    def count_reserved():
+        return ParkingSpot.query.filter_by(status=SpotStatus.RESERVED).count()
+
+    @staticmethod
+    def count_occupied():
+        return ParkingSpot.query.filter_by(status=SpotStatus.OCCUPIED).count()
+
+    @staticmethod
+    def count_available_by_lot(lot_id):
+        return ParkingSpot.query.filter_by(parking_lot_id=lot_id, status=SpotStatus.AVAILABLE).count()
+
+    @staticmethod
+    def count_reserved_by_lot(lot_id):
+        return ParkingSpot.query.filter_by(parking_lot_id=lot_id, status=SpotStatus.RESERVED).count()
+
+    @staticmethod
+    def count_occupied_by_lot(lot_id):
+        return ParkingSpot.query.filter_by(parking_lot_id=lot_id, status=SpotStatus.OCCUPIED).count()
+
 
     
     def occupy(self):
@@ -121,8 +149,8 @@ class Reservation(BaseModel):
     
     # Vehicle and cost
     vehicle_number = db.Column(db.String(20), nullable=False)
-    total_cost = db.Column(db.Numeric(10, 2), nullable=False)
-    
+    total_cost = db.Column(Numeric(10, 2), nullable=False)    
+
     # Status
     status = db.Column(db.Enum(ReservationStatus), default=ReservationStatus.ACTIVE, nullable=False)
     

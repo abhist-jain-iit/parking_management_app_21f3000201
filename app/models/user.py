@@ -43,7 +43,6 @@ class User(BaseModel):
     # Personal information
     first_name = db.Column(db.String(50), nullable=False)
     last_name = db.Column(db.String(50), nullable=False)
-    phone = db.Column(db.String(15), nullable=False)
 
     # Gender and status
     gender = db.Column(db.Enum(GenderEnum), nullable=False, default=GenderEnum.OTHER)

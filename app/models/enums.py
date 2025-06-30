@@ -28,6 +28,7 @@ class GenderEnum(Enum):
         return (self.value, self.value.replace('_', ' ').title())
 
 class PermissionType(Enum):
+    
     # Admin permissions
     MANAGE_USERS = "manage_users"
     MANAGE_PARKING = "manage_parking"

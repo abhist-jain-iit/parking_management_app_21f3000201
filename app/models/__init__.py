@@ -31,3 +31,4 @@ __all__ = [
     # Parking models
     'ParkingLot', 'ParkingSpot', 'Reservation'
 ]
+

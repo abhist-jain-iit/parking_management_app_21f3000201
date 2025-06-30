@@ -4,6 +4,8 @@ from app.extensions import db
 from app.routes import register_blueprints  
 from app.models.database_setup import init_database
 
+
+
 def create_app(config_name = 'default'):
     # config_name (str): Which configuration to use ('development', 'production', etc.)
 
@@ -26,4 +28,5 @@ def create_app(config_name = 'default'):
     register_blueprints(app)
 
     return app
+
 

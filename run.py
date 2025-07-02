@@ -1,4 +1,6 @@
+#!/usr/bin/env python3
 from app import create_app
+import os
 # from app.extensions import db
 # from app.models.user import User, Role
 
@@ -22,5 +24,14 @@ from app import create_app
 #         return "Database test failed", 500
 
 if __name__ == "__main__":
-    app = create_app('development')
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    try:
+        app = create_app('development')
+        print("🚀 Starting ParkEase - Vehicle Parking Management System")
+        print("📍 Access the application at: http://localhost:5000")
+        print("🔑 Admin Login - Username: admin, Password: Admin@123")
+        print("=" * 50)
+        app.run(debug=True, host="0.0.0.0", port=5000)
+    except Exception as e:
+        print(f"❌ Error starting the application: {e}")
+        print("💡 Make sure all dependencies are installed: pip install -r requirements.txt")
+        exit(1)

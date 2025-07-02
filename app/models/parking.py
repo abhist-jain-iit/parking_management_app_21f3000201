@@ -5,6 +5,7 @@ from app.models.enums import ParkingLotStatus, SpotStatus, ReservationStatus
 from datetime import datetime
 from decimal import Decimal
 from sqlalchemy import Numeric
+import math
 
 
 class ParkingLot(BaseModel):

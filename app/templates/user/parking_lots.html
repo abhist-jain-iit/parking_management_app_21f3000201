@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Find Parking - ParkEase</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .sidebar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: calc(100vh - 56px);
+        }
+        .sidebar .nav-link {
+            color: rgba(255, 255, 255, 0.8);
+            padding: 10px 20px;
+            margin: 5px 0;
+            border-radius: 10px;
+        }
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+        .parking-lot-card {
+            transition: transform 0.3s;
+            border: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .parking-lot-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+        }
+        .price-badge {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+        .availability-badge {
+            background: linear-gradient(135deg, #007bff 0%, #6610f2 100%);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+        }
+        .filter-card {
+            background: #f8f9fa;
+            border: none;
+            border-radius: 15px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('main.index') }}">
+                <i class="fas fa-car"></i> ParkEase
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user"></i> Dashboard
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('user.user_dashboard') }}">My Dashboard</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('user.user_profile') }}">Profile</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <form method="POST" action="{{ url_for('auth.logout') }}">
+                                    <button type="submit" class="dropdown-item">Logout</button>
+                                </form>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse">
+                <div class="position-sticky pt-3">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('user.user_dashboard') }}">
+                                <i class="fas fa-tachometer-alt"></i> Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" href="{{ url_for('user.view_parking_lots') }}">
+                                <i class="fas fa-search"></i> Find Parking
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('user.view_reservations') }}">
+                                <i class="fas fa-ticket-alt"></i> My Reservations
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('user.user_profile') }}">
+                                <i class="fas fa-user"></i> Profile
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <!-- Main content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">Find Parking Lots</h1>
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <div class="btn-group me-2">
+                            <a href="{{ url_for('user.user_dashboard') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left"></i> Back to Dashboard
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Flash Messages -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ 'danger' if category == 'error' else 'success' if category == 'success' else 'info' }} alert-dismissible fade show">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <!-- Search and Filter -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card filter-card">
+                            <div class="card-body">
+                                <form method="GET" action="{{ url_for('user.view_parking_lots') }}">
+                                    <div class="row">
+                                        <div class="col-md-4 mb-3">
+                                            <label for="search" class="form-label">Search</label>
+                                            <div class="input-group">
+                                                <input type="text" class="form-control" id="search" name="search" 
+                                                       placeholder="Search by name or address" value="{{ search }}">
+                                                <button type="submit" class="btn btn-outline-primary">
+                                                    <i class="fas fa-search"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3 mb-3">
+                                            <label for="location" class="form-label">Location</label>
+                                            <input type="text" class="form-control" id="location" name="location" 
+                                                   placeholder="Filter by city" value="{{ location_filter }}">
+                                        </div>
+                                        <div class="col-md-3 mb-3">
+                                            <label for="price_range" class="form-label">Price Range</label>
+                                            <select class="form-control" id="price_range" name="price_range">
+                                                <option value="">All Prices</option>
+                                                <option value="low" {{ 'selected' if price_filter == 'low' else '' }}>Under ₹20/hr</option>
+                                                <option value="medium" {{ 'selected' if price_filter == 'medium' else '' }}>₹20-₹30/hr</option>
+                                                <option value="high" {{ 'selected' if price_filter == 'high' else '' }}>₹30+/hr</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2 mb-3 d-flex align-items-end">
+                                            <a href="{{ url_for('user.view_parking_lots') }}" class="btn btn-outline-secondary w-100">
+                                                <i class="fas fa-times"></i> Clear
+                                            </a>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Parking Lots Grid -->
+                <div class="row">
+                    {% if parking_lots %}
+                        {% for lot in parking_lots %}
+                        <div class="col-lg-6 col-xl-4 mb-4">
+                            <div class="card parking-lot-card h-100">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h5 class="mb-0">{{ lot.name }}</h5>
+                                    <span class="price-badge">₹{{ "%.0f"|format(lot.price_per_hour) }}/hr</span>
+                                </div>
+                                <div class="card-body">
+                                    <p class="card-text">
+                                        <i class="fas fa-map-marker-alt text-muted"></i> {{ lot.address }}
+                                    </p>
+                                    <p class="card-text">
+                                        <i class="fas fa-city text-muted"></i> {{ lot.city.name if lot.city else 'Unknown City' }}
+                                    </p>
+                                    
+                                    <div class="row text-center mb-3">
+                                        <div class="col-6">
+                                            <div class="border rounded p-2">
+                                                <h6 class="text-primary mb-1">{{ lot.total_spots }}</h6>
+                                                <small class="text-muted">Total Spots</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="border rounded p-2">
+                                                <h6 class="text-success mb-1">{{ lot.available_spots }}</h6>
+                                                <small class="text-muted">Available</small>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {% if lot.available_spots > 0 %}
+                                        <span class="availability-badge mb-2 d-inline-block">
+                                            <i class="fas fa-check-circle"></i> Available Now
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-danger mb-2">
+                                            <i class="fas fa-times-circle"></i> Fully Occupied
+                                        </span>
+                                    {% endif %}
+                                </div>
+                                <div class="card-footer">
+                                    {% if lot.available_spots > 0 %}
+                                        <a href="{{ url_for('user.reserve_parking', lot_id=lot.id) }}" 
+                                           class="btn btn-primary w-100">
+                                            <i class="fas fa-ticket-alt"></i> Reserve Now
+                                        </a>
+                                    {% else %}
+                                        <button class="btn btn-secondary w-100" disabled>
+                                            <i class="fas fa-ban"></i> No Available Spots
+                                        </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="col-12">
+                            <div class="text-center py-5">
+                                <i class="fas fa-search fa-4x text-muted mb-4"></i>
+                                <h3 class="text-muted">No parking lots found</h3>
+                                <p class="text-muted">Try adjusting your search criteria or check back later.</p>
+                                {% if search or location_filter or price_filter %}
+                                    <a href="{{ url_for('user.view_parking_lots') }}" class="btn btn-primary">
+                                        <i class="fas fa-refresh"></i> Show All Parking Lots
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Tips Section -->
+                {% if parking_lots %}
+                <div class="row mt-5">
+                    <div class="col-12">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h5><i class="fas fa-lightbulb text-warning"></i> Parking Tips</h5>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <p><strong>Book in advance:</strong> Reserve your spot to guarantee availability.</p>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <p><strong>Check timing:</strong> Consider peak hours when choosing your parking duration.</p>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <p><strong>Save favorites:</strong> Keep track of your preferred parking locations.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </main>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

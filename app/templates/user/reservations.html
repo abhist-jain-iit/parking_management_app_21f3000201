@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Reservations - ParkEase</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .sidebar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: calc(100vh - 56px);
+        }
+        .sidebar .nav-link {
+            color: rgba(255, 255, 255, 0.8);
+            padding: 10px 20px;
+            margin: 5px 0;
+            border-radius: 10px;
+        }
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+        .reservation-card {
+            transition: transform 0.3s;
+            border: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .reservation-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+        }
+        .status-active {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        }
+        .status-completed {
+            background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+        }
+        .status-cancelled {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        }
+        .action-btn {
+            margin: 2px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('main.index') }}">
+                <i class="fas fa-car"></i> ParkEase
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user"></i> Dashboard
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('user.user_dashboard') }}">My Dashboard</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('user.user_profile') }}">Profile</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <form method="POST" action="{{ url_for('auth.logout') }}">
+                                    <button type="submit" class="dropdown-item">Logout</button>
+                                </form>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse">
+                <div class="position-sticky pt-3">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('user.user_dashboard') }}">
+                                <i class="fas fa-tachometer-alt"></i> Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('user.view_parking_lots') }}">
+                                <i class="fas fa-search"></i> Find Parking
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" href="{{ url_for('user.view_reservations') }}">
+                                <i class="fas fa-ticket-alt"></i> My Reservations
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('user.user_profile') }}">
+                                <i class="fas fa-user"></i> Profile
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <!-- Main content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">My Reservations</h1>
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <div class="btn-group me-2">
+                            <a href="{{ url_for('user.view_parking_lots') }}" class="btn btn-primary">
+                                <i class="fas fa-plus"></i> New Reservation
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Flash Messages -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ 'danger' if category == 'error' else 'success' if category == 'success' else 'info' }} alert-dismissible fade show">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <!-- Filter Options -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <form method="GET" action="{{ url_for('user.view_reservations') }}">
+                                    <div class="row align-items-end">
+                                        <div class="col-md-3">
+                                            <label for="status" class="form-label">Filter by Status</label>
+                                            <select class="form-control" id="status" name="status">
+                                                <option value="">All Reservations</option>
+                                                <option value="ACTIVE" {{ 'selected' if status_filter == 'ACTIVE' else '' }}>Active</option>
+                                                <option value="COMPLETED" {{ 'selected' if status_filter == 'COMPLETED' else '' }}>Completed</option>
+                                                <option value="CANCELLED" {{ 'selected' if status_filter == 'CANCELLED' else '' }}>Cancelled</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <button type="submit" class="btn btn-outline-primary w-100">
+                                                <i class="fas fa-filter"></i> Filter
+                                            </button>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <a href="{{ url_for('user.view_reservations') }}" class="btn btn-outline-secondary w-100">
+                                                <i class="fas fa-times"></i> Clear
+                                            </a>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reservations -->
+                {% if reservations and reservations.items %}
+                    <div class="row">
+                        {% for reservation in reservations.items %}
+                        <div class="col-lg-6 col-xl-4 mb-4">
+                            <div class="card reservation-card h-100">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0">{{ reservation.parking_spot.parking_lot.name }}</h6>
+                                    <span class="badge status-{{ reservation.status.value.lower() }} text-white px-2 py-1">
+                                        {{ reservation.status.value.title() }}
+                                    </span>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-2">
+                                        <i class="fas fa-car text-muted"></i>
+                                        <strong>Vehicle:</strong> {{ reservation.vehicle_number }}
+                                    </div>
+                                    <div class="mb-2">
+                                        <i class="fas fa-square text-muted"></i>
+                                        <strong>Spot:</strong> {{ reservation.parking_spot.spot_number }}
+                                    </div>
+                                    <div class="mb-2">
+                                        <i class="fas fa-map-marker-alt text-muted"></i>
+                                        <strong>Location:</strong> {{ reservation.parking_spot.parking_lot.address }}
+                                    </div>
+                                    <div class="mb-2">
+                                        <i class="fas fa-clock text-muted"></i>
+                                        <strong>Start:</strong> {{ reservation.start_time.strftime('%Y-%m-%d %H:%M') }}
+                                    </div>
+                                    <div class="mb-2">
+                                        <i class="fas fa-clock text-muted"></i>
+                                        <strong>End:</strong> {{ reservation.end_time.strftime('%Y-%m-%d %H:%M') }}
+                                    </div>
+                                    <div class="mb-3">
+                                        <i class="fas fa-rupee-sign text-muted"></i>
+                                        <strong>Cost:</strong> ₹{{ "%.2f"|format(reservation.total_cost) }}
+                                    </div>
+
+                                    <!-- Duration Badge -->
+                                    <div class="mb-3">
+                                        <span class="badge bg-info">
+                                            <i class="fas fa-hourglass-half"></i> 
+                                            {{ "%.1f"|format(reservation.get_duration_hours()) }} hours
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="card-footer">
+                                    {% if reservation.status.value == 'ACTIVE' %}
+                                        <div class="d-grid gap-1">
+                                            {% if reservation.parking_spot.status.value == 'RESERVED' %}
+                                                <form method="POST" action="{{ url_for('user.park_vehicle', reservation_id=reservation.id) }}" class="d-inline">
+                                                    <button type="submit" class="btn btn-success btn-sm action-btn w-100">
+                                                        <i class="fas fa-car"></i> Mark as Parked
+                                                    </button>
+                                                </form>
+                                            {% endif %}
+                                            <form method="POST" action="{{ url_for('user.release_parking', reservation_id=reservation.id) }}" class="d-inline">
+                                                <button type="submit" class="btn btn-warning btn-sm action-btn w-100" 
+                                                        onclick="return confirm('Are you sure you want to release this parking spot?')">
+                                                    <i class="fas fa-sign-out-alt"></i> Release Spot
+                                                </button>
+                                            </form>
+                                            <form method="POST" action="{{ url_for('user.cancel_reservation', reservation_id=reservation.id) }}" class="d-inline">
+                                                <button type="submit" class="btn btn-danger btn-sm action-btn w-100" 
+                                                        onclick="return confirm('Are you sure you want to cancel this reservation?')">
+                                                    <i class="fas fa-times"></i> Cancel
+                                                </button>
+                                            </form>
+                                        </div>
+                                    {% elif reservation.status.value == 'COMPLETED' %}
+                                        <div class="text-center">
+                                            <span class="text-success">
+                                                <i class="fas fa-check-circle"></i> Completed Successfully
+                                            </span>
+                                        </div>
+                                    {% elif reservation.status.value == 'CANCELLED' %}
+                                        <div class="text-center">
+                                            <span class="text-danger">
+                                                <i class="fas fa-times-circle"></i> Reservation Cancelled
+                                            </span>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if reservations.pages > 1 %}
+                    <div class="row">
+                        <div class="col-12">
+                            <nav aria-label="Reservations pagination">
+                                <ul class="pagination justify-content-center">
+                                    {% if reservations.has_prev %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="{{ url_for('user.view_reservations', page=reservations.prev_num, status=status_filter) }}">Previous</a>
+                                        </li>
+                                    {% endif %}
+                                    
+                                    {% for page_num in reservations.iter_pages() %}
+                                        {% if page_num %}
+                                            {% if page_num != reservations.page %}
+                                                <li class="page-item">
+                                                    <a class="page-link" href="{{ url_for('user.view_reservations', page=page_num, status=status_filter) }}">{{ page_num }}</a>
+                                                </li>
+                                            {% else %}
+                                                <li class="page-item active">
+                                                    <span class="page-link">{{ page_num }}</span>
+                                                </li>
+                                            {% endif %}
+                                        {% else %}
+                                            <li class="page-item disabled">
+                                                <span class="page-link">...</span>
+                                            </li>
+                                        {% endif %}
+                                    {% endfor %}
+                                    
+                                    {% if reservations.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="{{ url_for('user.view_reservations', page=reservations.next_num, status=status_filter) }}">Next</a>
+                                        </li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                {% else %}
+                    <!-- No Reservations -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="text-center py-5">
+                                <i class="fas fa-ticket-alt fa-4x text-muted mb-4"></i>
+                                <h3 class="text-muted">No reservations found</h3>
+                                {% if status_filter %}
+                                    <p class="text-muted">No {{ status_filter.lower() }} reservations at the moment.</p>
+                                    <a href="{{ url_for('user.view_reservations') }}" class="btn btn-outline-primary">
+                                        <i class="fas fa-list"></i> View All Reservations
+                                    </a>
+                                {% else %}
+                                    <p class="text-muted">You haven't made any parking reservations yet.</p>
+                                    <a href="{{ url_for('user.view_parking_lots') }}" class="btn btn-primary">
+                                        <i class="fas fa-plus"></i> Make Your First Reservation
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+
+                <!-- Reservation Tips -->
+                <div class="row mt-5">
+                    <div class="col-12">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h5><i class="fas fa-info-circle text-info"></i> Reservation Management Tips</h5>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <p><strong>Mark as Parked:</strong> Click this when you've actually parked your vehicle.</p>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <p><strong>Release Spot:</strong> Use this when you're leaving to free up the spot.</p>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <p><strong>Cancel Early:</strong> Cancel unused reservations to avoid charges.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

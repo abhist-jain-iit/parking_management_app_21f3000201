@@ -216,7 +216,7 @@ def logout():
         # More secure - requires POST request
         session.clear()
         flash('You have been logged out successfully', 'info')
-        return redirect(url_for('index'))
+        return redirect(url_for('main.index'))
     else:
         # GET request - show logout confirmation or redirect
-        return redirect(url_for('index'))
+        return redirect(url_for('main.index'))

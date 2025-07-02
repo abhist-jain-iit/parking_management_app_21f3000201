@@ -1,12 +1,12 @@
 // form.js
 
 function showLogin() {
-    window.location.href = '../auth/login.html';
+    window.location.href = '/auth/login';
     clearMessages();
 }
 
 function showSignup() {
-    window.location.href = '../auth/signup.html';
+    window.location.href = '/auth/signup';
     clearMessages();
 }
 
@@ -171,8 +171,9 @@ document.addEventListener('DOMContentLoaded', function () {
     } else if (typeof showLogin === 'function') {
         // Only call showLogin if we're not already on a specific page
         const currentPath = window.location.pathname;
-        if (!currentPath.includes('login.html') && !currentPath.includes('signup.html')) {
+        if (!currentPath.includes('/auth/login') && !currentPath.includes('/auth/signup')) {
             showLogin();
         }
+
     }
 });

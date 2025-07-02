@@ -8,59 +8,67 @@ def require_permission(required_permission):
         @wraps(f)
         def decorated_function(*args, **kwargs):
             try:
-                # Method 1: Check if JWT token is in Authorization header
-                if 'Authorization' in request.headers:
-                    verify_jwt_in_request()
-                    claims = get_jwt()
-                    user_permissions = claims.get('permissions', [])
-                    
-                    if required_permission in user_permissions:
-                        return f(*args, **kwargs)
-                    else:
-                        return jsonify({'msg': f'Permission {required_permission} required'}), 403
+                user_permissions = []
                 
-                # Method 2: Check if JWT token is in session (for web interface)
-                elif 'access_token' in session:
-                    # Temporarily add the token to headers for verification
-                    from werkzeug.datastructures import EnvironHeaders
-                    
-                    # Create a new headers object with the Authorization header
-                    new_headers = dict(request.headers)
-                    new_headers['Authorization'] = f'Bearer {session["access_token"]}'
-                    
-                    # Replace request headers temporarily
-                    original_headers = request.headers
-                    request.headers = EnvironHeaders(new_headers)
-                    
+                # Method 1: JWT in Authorization header
+                if 'Authorization' in request.headers:
                     try:
                         verify_jwt_in_request()
                         claims = get_jwt()
                         user_permissions = claims.get('permissions', [])
-                        
-                        if required_permission in user_permissions:
-                            return f(*args, **kwargs)
-                        else:
-                            return jsonify({'msg': f'Permission {required_permission} required'}), 403
-                    finally:
-                        # Restore original headers
-                        request.headers = original_headers
+                    except Exception as e:
+                        print(f"JWT verification failed: {e}")
+                        return jsonify({'msg': 'Invalid token'}), 401
                 
-                # Method 3: Fallback to session-based check for admin
-                elif 'user_id' in session and session.get('user_role') == 'admin':
-                    # Admin users get access to specific permissions
-                    admin_allowed_permissions = [
-                        PermissionType.FULL_SYSTEM_ACCESS.value,
-                        PermissionType.MANAGE_USERS.value
-                        # Add other admin permissions as needed
-                    ]
+                # Method 2: JWT in session
+                elif 'access_token' in session:
+                    try:
+                        # Set the Authorization header for JWT verification
+                        request.environ['HTTP_AUTHORIZATION'] = f'Bearer {session["access_token"]}'
+                        verify_jwt_in_request()
+                        claims = get_jwt()
+                        user_permissions = claims.get('permissions', [])
+                    except Exception as e:
+                        print(f"Session JWT verification failed: {e}")
+                        # Clear invalid token from session
+                        session.pop('access_token', None)
+                        return jsonify({'msg': 'Session expired'}), 401
+                
+                # Method 3: Session-based admin check
+                elif 'user_id' in session:
+                    user_id = session.get('user_id')
+                    user_role = session.get('user_role', '').lower()
                     
-                    if required_permission in admin_allowed_permissions:
-                        return f(*args, **kwargs)
+                    # Admin bypass for specific permissions
+                    if user_role == 'admin':
+                        admin_permissions = [
+                            PermissionType.FULL_SYSTEM_ACCESS.value,
+                            PermissionType.MANAGE_USERS.value,
+                            PermissionType.MANAGE_PARKING.value,
+                            PermissionType.VIEW_ANALYTICS.value,
+                            PermissionType.VIEW_PARKING_DETAILS.value,
+                            PermissionType.SEARCH_PARKING_SPOTS.value
+                        ]
+                        user_permissions = admin_permissions
                     else:
-                        return jsonify({'msg': f'Permission {required_permission} required'}), 403
+                        # Get user permissions from database
+                        user = User.query.get(user_id)
+                        if user and hasattr(user, 'user_roles'):
+                            for user_role_obj in user.user_roles:
+                                if user_role_obj.role and hasattr(user_role_obj.role, 'permissions'):
+                                    user_permissions.extend([p.name for p in user_role_obj.role.permissions])
                 
                 else:
                     return jsonify({'msg': 'Authentication required'}), 401
+                
+                # Check permission
+                if required_permission in user_permissions:
+                    return f(*args, **kwargs)
+                else:
+                    return jsonify({
+                        'msg': f'Permission {required_permission} required',
+                        'user_permissions': user_permissions  # Remove this line in production
+                    }), 403
                     
             except Exception as e:
                 print(f"Permission check error: {e}")

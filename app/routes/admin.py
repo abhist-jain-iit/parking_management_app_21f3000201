@@ -913,7 +913,7 @@ def delete_parking_lot(lot_id):
         db.session.rollback()
         error_msg = f'Error deleting parking lot: {str(e)}'
         
-        if request.content_type == 'application/json':
+        if request.content_type == 'application/json' or request.args.get('format') == 'json':
             return jsonify({'success': False, 'error': error_msg}), 500
         
         flash(error_msg, 'error')
@@ -1540,7 +1540,7 @@ def delete_parking_spot(spot_id):
         db.session.rollback()
         error_msg = f'Error deleting parking spot: {str(e)}'
         
-        if request.content_type == 'application/json':
+        if request.content_type == 'application/json' or request.args.get('format') == 'json':
             return jsonify({'success': False, 'error': error_msg}), 500
         
         flash(error_msg, 'error')
@@ -1711,125 +1711,124 @@ def update_spot_status(spot_id):
         db.session.rollback()
         error_msg = f'Error updating parking spot status: {str(e)}'
         
-        if request.content_type == 'application/json':
+        if request.content_type == 'application/json' or request.args.get('format') == 'json':
             return jsonify({'success': False, 'error': error_msg}), 500
         
         flash(error_msg, 'error')
     
     return redirect(url_for('admin.manage_parking_spots'))
-    """View all parking spots - comprehensive view"""
-    try:
-        spots = ParkingSpot.query.join(ParkingLot).all()
-        
-        spots_data = []
-        for spot in spots:
-            # Get reservation history for this spot
-            total_reservations = Reservation.query.filter_by(parking_spot_id=spot.id).count()
-            active_reservations = Reservation.query.filter_by(
-                parking_spot_id=spot.id, 
-                status=ReservationStatus.ACTIVE
-            ).count()
-            
-            # Calculate revenue from this spot
-            spot_revenue = db.session.query(func.sum(Reservation.total_cost)).filter(
-                Reservation.parking_spot_id == spot.id,
-                Reservation.status != ReservationStatus.CANCELLED
-            ).scalar() or 0
-            
-            spots_data.append({
-                'spot': spot,
-                'stats': {
-                    'total_reservations': total_reservations,
-                    'active_reservations': active_reservations,
-                    'revenue': float(spot_revenue),
-                    'parking_lot_name': spot.parking_lot.name if spot.parking_lot else 'Unknown',
-                    'created_at': spot.created_at,
-                    'updated_at': spot.updated_at
-                }
-            })
-        
-        # Summary statistics
-        summary_stats = {
-            'total_spots': len(spots_data),
-            'available_spots': len([s for s in spots_data if s['spot'].status == 'available']),
-            'occupied_spots': len([s for s in spots_data if s['spot'].status == 'occupied']),
-            'reserved_spots': len([s for s in spots_data if s['spot'].status == 'reserved']),
-            'maintenance_spots': len([s for s in spots_data if s['spot'].status == 'maintenance']),
-            'total_revenue': round(sum([s['stats']['revenue'] for s in spots_data]), 2),
-            'total_reservations': sum([s['stats']['total_reservations'] for s in spots_data])
-        }
-        
-        if request.headers.get('Content-Type') == 'application/json' or request.args.get('format') == 'json':
-            spots_json = []
-            for spot_data in spots_data:
-                spot_dict = {
-                    'id': spot_data['spot'].id,
-                    'spot_number': spot_data['spot'].spot_number,
-                    'status': spot_data['spot'].status,
-                    'parking_lot_id': spot_data['spot'].parking_lot_id,
-                    'stats': spot_data['stats']
-                }
-                spots_json.append(spot_dict)
-            
-            return jsonify({
-                'success': True,
-                'parking_spots': spots_json,
-                'summary_stats': summary_stats
-            })
-        
-        return render_template('admin/parking/all_spots.html',
-                             spots_data=spots_data,
-                             summary_stats=summary_stats)
-                             
-    except Exception as e:
-        flash(f"Error loading parking spots: {str(e)}", "error")
-        
-        if request.headers.get('Content-Type') == 'application/json' or request.args.get('format') == 'json':
-            return jsonify({
-                'success': False,
-                'error': str(e),
-                'parking_spots': [],
-                'summary_stats': {}
-            }), 500
-        
-        return render_template('admin/parking/all_spots.html',
-                             spots_data=[],
-                             summary_stats={})
-    """Toggle user active/inactive status (soft disable)"""
+
+@admin_bp.route('/users/<int:user_id>/reset-password', methods=['POST'])
+@require_permission(PermissionType.MANAGE_USERS.value)
+@refresh_db_session
+def reset_user_password(user_id):
+    """Reset a user's password to a temporary password."""
     try:
         user = User.query.get_or_404(user_id)
         
-        # Assuming you have an is_active field
-        if hasattr(user, 'is_active'):
-            user.is_active = not user.is_active
-            status = "activated" if user.is_active else "deactivated"
-        else:
-            # If no is_active field, you might use a different approach
-            return jsonify({'success': False, 'error': 'User status toggle not supported'}), 400
+        # Generate a temporary password
+        import secrets
+        import string
         
+        # Generate a random 8-character password
+        alphabet = string.ascii_letters + string.digits
+        temp_password = ''.join(secrets.choice(alphabet) for i in range(8))
+        
+        # Hash and set the new password
+        user.set_password(temp_password)
         user.updated_at = datetime.utcnow()
+        
         db.session.commit()
         
-        success_msg = f'User {user.username} {status} successfully!'
+        flash(f'Password reset successfully for {user.username}. Temporary password: {temp_password}', 'success')
         
-        if request.content_type == 'application/json':
+        # Return JSON response if requested
+        if request.headers.get('Content-Type') == 'application/json' or request.args.get('format') == 'json':
             return jsonify({
                 'success': True,
-                'message': success_msg,
-                'user': user.to_dict()
+                'message': 'Password reset successfully',
+                'temporary_password': temp_password
             })
         
-        flash(success_msg, 'success')
         return redirect(url_for('admin.view_user_details', user_id=user_id))
         
     except Exception as e:
         db.session.rollback()
-        error_msg = f'Error toggling user status: {str(e)}'
+        flash(f'Error resetting password: {str(e)}', 'error')
         
-        if request.content_type == 'application/json':
-            return jsonify({'success': False, 'error': error_msg}), 500
+        if request.headers.get('Content-Type') == 'application/json' or request.args.get('format') == 'json':
+            return jsonify({'success': False, 'error': str(e)}), 500
         
-        flash(error_msg, 'error')
-        return redirect(url_for('admin.manage_users'))
+        return redirect(url_for('admin.view_user_details', user_id=user_id))
+
+
+@admin_bp.route('/users/<int:user_id>/deactivate', methods=['POST'])
+@require_permission(PermissionType.MANAGE_USERS.value)
+@refresh_db_session
+def deactivate_user(user_id):
+    """Deactivate a user account."""
+    try:
+        user = User.query.get_or_404(user_id)
+        
+        # Set user status to inactive
+        user.status = UserStatus.INACTIVE
+        user.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        flash(f'User {user.username} has been deactivated successfully.', 'success')
+        
+        # Return JSON response if requested
+        if request.headers.get('Content-Type') == 'application/json' or request.args.get('format') == 'json':
+            return jsonify({
+                'success': True,
+                'message': f'User {user.username} deactivated successfully'
+            })
+        
+        return redirect(url_for('admin.view_user_details', user_id=user_id))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error deactivating user: {str(e)}', 'error')
+        
+        if request.headers.get('Content-Type') == 'application/json' or request.args.get('format') == 'json':
+            return jsonify({'success': False, 'error': str(e)}), 500
+        
+        return redirect(url_for('admin.view_user_details', user_id=user_id))
+
+
+@admin_bp.route('/users/<int:user_id>/activate', methods=['POST'])
+@require_permission(PermissionType.MANAGE_USERS.value)
+@refresh_db_session
+def activate_user(user_id):
+    """Activate a user account."""
+    try:
+        user = User.query.get_or_404(user_id)
+        
+        # Set user status to active
+        user.status = UserStatus.ACTIVE
+        user.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        flash(f'User {user.username} has been activated successfully.', 'success')
+        
+        # Return JSON response if requested
+        if request.headers.get('Content-Type') == 'application/json' or request.args.get('format') == 'json':
+            return jsonify({
+                'success': True,
+                'message': f'User {user.username} activated successfully'
+            })
+        
+        return redirect(url_for('admin.view_user_details', user_id=user_id))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error activating user: {str(e)}', 'error')
+        
+        if request.headers.get('Content-Type') == 'application/json' or request.args.get('format') == 'json':
+            return jsonify({'success': False, 'error': str(e)}), 500
+        
+        return redirect(url_for('admin.view_user_details', user_id=user_id))
 
 

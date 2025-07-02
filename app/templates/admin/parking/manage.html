@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Parking Lots - Admin - ParkEase</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .sidebar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: calc(100vh - 56px);
+        }
+        .sidebar .nav-link {
+            color: rgba(255, 255, 255, 0.8);
+            padding: 10px 20px;
+            margin: 5px 0;
+            border-radius: 10px;
+        }
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+        .parking-card {
+            transition: transform 0.3s;
+        }
+        .parking-card:hover {
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('main.index') }}">
+                <i class="fas fa-car"></i> ParkEase Admin
+            </a>
+            <div class="navbar-nav ms-auto">
+                <div class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-user-shield"></i> Administrator
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{{ url_for('main.index') }}">View Site</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <form method="POST" action="{{ url_for('auth.logout') }}">
+                                <button type="submit" class="dropdown-item">Logout</button>
+                            </form>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse">
+                <div class="position-sticky pt-3">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('admin.admin_dashboard') }}">
+                                <i class="fas fa-tachometer-alt"></i> Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('admin.manage_users') }}">
+                                <i class="fas fa-users"></i> Manage Users
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" href="{{ url_for('admin.manage_parking') }}">
+                                <i class="fas fa-car"></i> Parking Lots
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <!-- Main content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">Manage Parking Lots</h1>
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createParkingLotModal">
+                            <i class="fas fa-plus"></i> Create New Parking Lot
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Flash Messages -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ 'danger' if category == 'error' else 'success' if category == 'success' else 'info' }} alert-dismissible fade show">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <!-- Statistics Cards -->
+                {% if parking_stats %}
+                <div class="row mb-4">
+                    <div class="col-xl-3 col-md-6">
+                        <div class="card bg-primary text-white">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <h4>{{ parking_stats.total_lots }}</h4>
+                                        <p class="mb-0">Total Parking Lots</p>
+                                    </div>
+                                    <div>
+                                        <i class="fas fa-building fa-2x"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xl-3 col-md-6">
+                        <div class="card bg-success text-white">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <h4>{{ parking_stats.total_spots }}</h4>
+                                        <p class="mb-0">Total Parking Spots</p>
+                                    </div>
+                                    <div>
+                                        <i class="fas fa-car fa-2x"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xl-3 col-md-6">
+                        <div class="card bg-warning text-white">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <h4>{{ parking_stats.occupied_spots }}</h4>
+                                        <p class="mb-0">Occupied Spots</p>
+                                    </div>
+                                    <div>
+                                        <i class="fas fa-parking fa-2x"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xl-3 col-md-6">
+                        <div class="card bg-info text-white">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <h4>{{ "%.1f"|format(parking_stats.occupancy_rate) }}%</h4>
+                                        <p class="mb-0">Occupancy Rate</p>
+                                    </div>
+                                    <div>
+                                        <i class="fas fa-chart-pie fa-2x"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Parking Lots Grid -->
+                {% if parking_lots %}
+                <div class="row">
+                    {% for lot_data in parking_lots %}
+                    <div class="col-lg-6 col-xl-4 mb-4">
+                        <div class="card parking-card h-100">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0">{{ lot_data.lot.name }}</h6>
+                                <span class="badge bg-{{ 'success' if lot_data.lot.status.value == 'ACTIVE' else 'warning' }}">
+                                    {{ lot_data.lot.status.value }}
+                                </span>
+                            </div>
+                            <div class="card-body">
+                                <p class="card-text">
+                                    <i class="fas fa-map-marker-alt text-muted"></i>
+                                    <strong>Location:</strong> {{ lot_data.lot.location }}
+                                </p>
+                                <p class="card-text">
+                                    <i class="fas fa-car text-muted"></i>
+                                    <strong>Total Spots:</strong> {{ lot_data.stats.total_spots }}
+                                </p>
+                                <p class="card-text">
+                                    <i class="fas fa-dollar-sign text-muted"></i>
+                                    <strong>Hourly Rate:</strong> ${{ "%.2f"|format(lot_data.lot.hourly_rate) }}
+                                </p>
+                                <p class="card-text">
+                                    <i class="fas fa-clock text-muted"></i>
+                                    <strong>Operating Hours:</strong> {{ lot_data.lot.opening_time.strftime('%H:%M') if lot_data.lot.opening_time else 'N/A' }} - {{ lot_data.lot.closing_time.strftime('%H:%M') if lot_data.lot.closing_time else 'N/A' }}
+                                </p>
+
+                                <!-- Occupancy Stats -->
+                                <div class="row text-center mt-3">
+                                    <div class="col-6">
+                                        <div class="border rounded p-2">
+                                            <h6 class="text-success mb-1">{{ lot_data.stats.available_spots }}</h6>
+                                            <small class="text-muted">Available</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="border rounded p-2">
+                                            <h6 class="text-warning mb-1">{{ lot_data.stats.occupied_spots }}</h6>
+                                            <small class="text-muted">Occupied</small>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mt-3">
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <span>Occupancy Rate</span>
+                                        <strong>{{ "%.1f"|format(lot_data.stats.occupancy_rate) }}%</strong>
+                                    </div>
+                                    <div class="progress">
+                                        <div class="progress-bar bg-{{ 'success' if lot_data.stats.occupancy_rate < 50 else 'warning' if lot_data.stats.occupancy_rate < 80 else 'danger' }}" 
+                                             style="width: {{ lot_data.stats.occupancy_rate }}%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-footer">
+                                <div class="d-flex gap-1">
+                                    <a href="{{ url_for('admin.view_parking_lot_details', lot_id=lot_data.lot.id) }}" 
+                                       class="btn btn-sm btn-outline-info flex-fill">
+                                        <i class="fas fa-eye"></i> View
+                                    </a>
+                                    <a href="{{ url_for('admin.edit_parking_lot', lot_id=lot_data.lot.id) }}" 
+                                       class="btn btn-sm btn-outline-primary flex-fill">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </a>
+                                    <button type="button" class="btn btn-sm btn-outline-danger flex-fill" 
+                                            data-bs-toggle="modal" data-bs-target="#deleteLotModal{{ lot_data.lot.id }}">
+                                        <i class="fas fa-trash"></i> Delete
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Delete Modal for each lot -->
+                    <div class="modal fade" id="deleteLotModal{{ lot_data.lot.id }}" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Delete Parking Lot</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form method="POST" action="{{ url_for('admin.delete_parking_lot', lot_id=lot_data.lot.id) }}">
+                                    <div class="modal-body">
+                                        <p>Are you sure you want to delete <strong>{{ lot_data.lot.name }}</strong>?</p>
+                                        <div class="alert alert-danger">
+                                            <i class="fas fa-exclamation-triangle"></i>
+                                            This action cannot be undone and will delete all associated parking spots and reservations.
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                        <button type="submit" class="btn btn-danger">Delete Parking Lot</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-building fa-4x text-muted mb-4"></i>
+                    <h3 class="text-muted">No parking lots created yet</h3>
+                    <p class="text-muted">Create your first parking lot to get started.</p>
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createParkingLotModal">
+                        <i class="fas fa-plus"></i> Create Parking Lot
+                    </button>
+                </div>
+                {% endif %}
+            </main>
+        </div>
+    </div>
+
+    <!-- Create Parking Lot Modal -->
+    <div class="modal fade" id="createParkingLotModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create New Parking Lot</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="POST" action="{{ url_for('admin.create_parking_lot') }}">
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="name" class="form-label">Parking Lot Name <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="name" name="name" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="location" class="form-label">Location <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="location" name="location" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="total_spots" class="form-label">Total Spots <span class="text-danger">*</span></label>
+                                    <input type="number" class="form-control" id="total_spots" name="total_spots" min="1" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="hourly_rate" class="form-label">Hourly Rate ($) <span class="text-danger">*</span></label>
+                                    <input type="number" class="form-control" id="hourly_rate" name="hourly_rate" 
+                                           step="0.01" min="0" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="status" class="form-label">Status</label>
+                                    <select class="form-control" id="status" name="status">
+                                        <option value="ACTIVE">Active</option>
+                                        <option value="INACTIVE">Inactive</option>
+                                        <option value="MAINTENANCE">Maintenance</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="opening_time" class="form-label">Opening Time</label>
+                                    <input type="time" class="form-control" id="opening_time" name="opening_time">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="closing_time" class="form-label">Closing Time</label>
+                                    <input type="time" class="form-control" id="closing_time" name="closing_time">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Create Parking Lot</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

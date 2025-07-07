@@ -1,0 +1,200 @@
+{% extends 'base.html' %}
+{% block content %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<div class="container mt-4">
+  <h2 class="mb-4">Welcome, {{ user.first_name }}!</h2>
+  <div class="row mb-4">
+    <div class="col-md-4 mb-3">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <h6 class="mb-2"><i class="fa fa-user text-primary"></i> Profile</h6>
+          <div><b>Username:</b> {{ user.username }}</div>
+          <div><b>Email:</b> {{ user.email }}</div>
+          <div><b>Phone:</b> {{ user.phone }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4 mb-3">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <h6 class="mb-2"><i class="fa fa-car text-success"></i> Active Reservations</h6>
+          <div class="display-6">{{ active_reservations|length }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4 mb-3">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <h6 class="mb-2"><i class="fa fa-history text-info"></i> Completed Reservations</h6>
+          <div class="display-6">{{ completed_reservations|length }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs for Reservations and Booking -->
+  <ul class="nav nav-tabs mb-3" id="userTab" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="active-tab" data-bs-toggle="tab" data-bs-target="#active" type="button" role="tab">Active Reservations</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="completed-tab" data-bs-toggle="tab" data-bs-target="#completed" type="button" role="tab">Completed</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="cancelled-tab" data-bs-toggle="tab" data-bs-target="#cancelled" type="button" role="tab">Cancelled</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="book-tab" data-bs-toggle="tab" data-bs-target="#book" type="button" role="tab">Book a Spot</button>
+    </li>
+  </ul>
+  <div class="tab-content" id="userTabContent">
+    <!-- Active Reservations -->
+    <div class="tab-pane fade show active" id="active" role="tabpanel">
+      <div class="card mb-3">
+        <div class="card-header bg-success text-white"><i class="fa fa-car"></i> Active Reservations</div>
+        <div class="card-body p-0">
+          <table class="table table-bordered table-striped mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Spot</th>
+                <th>Lot</th>
+                <th>Start Time</th>
+                <th>End Time</th>
+                <th>Status</th>
+                <th>Cost</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in active_reservations %}
+              <tr>
+                <td>{{ r.parking_spot.spot_number if r.parking_spot else '-' }}</td>
+                <td>{{ r.parking_spot.parking_lot.name if r.parking_spot and r.parking_spot.parking_lot else '-' }}</td>
+                <td>{{ r.start_time.strftime('%Y-%m-%d %H:%M') if r.start_time else '' }}</td>
+                <td>{{ r.end_time.strftime('%Y-%m-%d %H:%M') if r.end_time else '' }}</td>
+                <td>{{ r.status.value|capitalize }}</td>
+                <td>₹{{ r.total_cost|round(2) }}</td>
+              </tr>
+              {% endfor %}
+              {% if active_reservations|length == 0 %}
+              <tr><td colspan="6" class="text-center">No active reservations.</td></tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <!-- Completed Reservations -->
+    <div class="tab-pane fade" id="completed" role="tabpanel">
+      <div class="card mb-3">
+        <div class="card-header bg-info text-white"><i class="fa fa-history"></i> Completed Reservations</div>
+        <div class="card-body p-0">
+          <table class="table table-bordered table-striped mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Spot</th>
+                <th>Lot</th>
+                <th>Start Time</th>
+                <th>End Time</th>
+                <th>Status</th>
+                <th>Cost</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in completed_reservations %}
+              <tr>
+                <td>{{ r.parking_spot.spot_number if r.parking_spot else '-' }}</td>
+                <td>{{ r.parking_spot.parking_lot.name if r.parking_spot and r.parking_spot.parking_lot else '-' }}</td>
+                <td>{{ r.start_time.strftime('%Y-%m-%d %H:%M') if r.start_time else '' }}</td>
+                <td>{{ r.end_time.strftime('%Y-%m-%d %H:%M') if r.end_time else '' }}</td>
+                <td>{{ r.status.value|capitalize }}</td>
+                <td>₹{{ r.total_cost|round(2) }}</td>
+              </tr>
+              {% endfor %}
+              {% if completed_reservations|length == 0 %}
+              <tr><td colspan="6" class="text-center">No completed reservations.</td></tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <!-- Cancelled Reservations -->
+    <div class="tab-pane fade" id="cancelled" role="tabpanel">
+      <div class="card mb-3">
+        <div class="card-header bg-danger text-white"><i class="fa fa-times-circle"></i> Cancelled Reservations</div>
+        <div class="card-body p-0">
+          <table class="table table-bordered table-striped mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Spot</th>
+                <th>Lot</th>
+                <th>Start Time</th>
+                <th>End Time</th>
+                <th>Status</th>
+                <th>Cost</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in cancelled_reservations %}
+              <tr>
+                <td>{{ r.parking_spot.spot_number if r.parking_spot else '-' }}</td>
+                <td>{{ r.parking_spot.parking_lot.name if r.parking_spot and r.parking_spot.parking_lot else '-' }}</td>
+                <td>{{ r.start_time.strftime('%Y-%m-%d %H:%M') if r.start_time else '' }}</td>
+                <td>{{ r.end_time.strftime('%Y-%m-%d %H:%M') if r.end_time else '' }}</td>
+                <td>{{ r.status.value|capitalize }}</td>
+                <td>₹{{ r.total_cost|round(2) }}</td>
+              </tr>
+              {% endfor %}
+              {% if cancelled_reservations|length == 0 %}
+              <tr><td colspan="6" class="text-center">No cancelled reservations.</td></tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <!-- Book a Spot -->
+    <div class="tab-pane fade" id="book" role="tabpanel">
+      <div class="card mb-3">
+        <div class="card-header bg-primary text-white"><i class="fa fa-parking"></i> Book a Parking Spot</div>
+        <div class="card-body">
+          <form method="post" action="{{ url_for('user.book_spot') }}">
+            <div class="mb-3">
+              <label for="lot_id" class="form-label">Select Lot</label>
+              <select class="form-control" id="lot_id" name="lot_id" required>
+                <option value="">Select Lot</option>
+                {% for lot in lots %}
+                <option value="{{ lot.id }}">{{ lot.name }} ({{ lot.city.name if lot.city else '' }})</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="mb-3">
+              <label for="spot_id" class="form-label">Select Spot</label>
+              <select class="form-control" id="spot_id" name="spot_id" required>
+                <option value="">Select Spot</option>
+                {% for spot in spots %}
+                <option value="{{ spot.id }}">{{ spot.spot_number }} ({{ spot.parking_lot.name if spot.parking_lot else '' }})</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="mb-3">
+              <label for="vehicle_number" class="form-label">Vehicle Number</label>
+              <input type="text" class="form-control" id="vehicle_number" name="vehicle_number" required>
+            </div>
+            <div class="mb-3">
+              <label for="start_time" class="form-label">Start Time</label>
+              <input type="datetime-local" class="form-control" id="start_time" name="start_time" required>
+            </div>
+            <div class="mb-3">
+              <label for="end_time" class="form-label">End Time</label>
+              <input type="datetime-local" class="form-control" id="end_time" name="end_time" required>
+            </div>
+            <button type="submit" class="btn btn-success">Book Spot</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+{% endblock %}

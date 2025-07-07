@@ -26,6 +26,10 @@ class Permission(BaseModel):
     def __repr__(self):
         return f"<Permission {self.name}>"
 
+    @staticmethod
+    def get_by_type(permission_type):
+        return Permission.query.filter_by(permission_type=permission_type).first()
+
 class RolePermission(BaseModel):
     __tablename__ = "role_permissions"
     

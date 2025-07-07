@@ -14,6 +14,7 @@ class UserStatus(Enum):
     ACTIVE = "active"
     INACTIVE = "inactive"
     PENDING = "pending"
+    BANNED = "banned"
     
     def def_function(self):
         return (self.value, self.value.replace('_', ' ').title())

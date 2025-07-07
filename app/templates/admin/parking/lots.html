@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+  <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-secondary mb-3">Back to Admin Dashboard</a>
+  <h2>Parking Lots</h2>
+  <a href="{{ url_for('admin.create_parking_lot') }}" class="btn btn-primary mb-3">Add New Lot</a>
+  <table class="table table-bordered table-striped">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Address</th>
+        <th>City</th>
+        <th>Total Spots</th>
+        <th>Available Spots</th>
+        <th>Price/Hour</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for lot in lots %}
+      <tr>
+        <td>{{ lot.name }}</td>
+        <td>{{ lot.address }}</td>
+        <td>{{ lot.city.name if lot.city else '' }}</td>
+        <td>{{ lot.total_spots }}</td>
+        <td>{{ lot.available_spots }}</td>
+        <td>{{ lot.price_per_hour }}</td>
+        <td>
+          <a href="{{ url_for('admin.view_parking_lot_details', lot_id=lot.id) }}" class="btn btn-info btn-sm">View</a>
+          <a href="{{ url_for('admin.edit_parking_lot', lot_id=lot.id) }}" class="btn btn-warning btn-sm">Edit</a>
+          <form action="{{ url_for('admin.delete_parking_lot', lot_id=lot.id) }}" method="post" style="display:inline;">
+            <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %} 

@@ -1,0 +1,93 @@
+{% extends 'home.html' %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Add New Geography</h2>
+  <form method="post">
+    <div class="form-group mb-3">
+      <label for="entity">Entity Type</label>
+      <select class="form-control" id="entity" name="entity" required onchange="showFields()">
+        <option value="">Select</option>
+        <option value="continent">Continent</option>
+        <option value="country">Country</option>
+        <option value="state">State</option>
+        <option value="city">City</option>
+      </select>
+    </div>
+    <div id="continent-fields" style="display:none;">
+      <div class="form-group mb-3">
+        <label for="name">Continent Name</label>
+        <input type="text" class="form-control" name="name" id="continent-name">
+      </div>
+      <div class="form-group mb-3">
+        <label for="code">Continent Code</label>
+        <input type="text" class="form-control" name="code" id="continent-code">
+      </div>
+    </div>
+    <div id="country-fields" style="display:none;">
+      <div class="form-group mb-3">
+        <label for="name">Country Name</label>
+        <input type="text" class="form-control" name="name" id="country-name">
+      </div>
+      <div class="form-group mb-3">
+        <label for="code">Country Code</label>
+        <input type="text" class="form-control" name="code" id="country-code">
+      </div>
+      <div class="form-group mb-3">
+        <label for="parent_id">Continent</label>
+        <select class="form-control" name="parent_id" id="country-continent">
+          {% for continent in continents %}
+          <option value="{{ continent.id }}">{{ continent.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div id="state-fields" style="display:none;">
+      <div class="form-group mb-3">
+        <label for="name">State Name</label>
+        <input type="text" class="form-control" name="name" id="state-name">
+      </div>
+      <div class="form-group mb-3">
+        <label for="code">State Code</label>
+        <input type="text" class="form-control" name="code" id="state-code">
+      </div>
+      <div class="form-group mb-3">
+        <label for="parent_id">Country</label>
+        <select class="form-control" name="parent_id" id="state-country">
+          {% for country in countries %}
+          <option value="{{ country.id }}">{{ country.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div id="city-fields" style="display:none;">
+      <div class="form-group mb-3">
+        <label for="name">City Name</label>
+        <input type="text" class="form-control" name="name" id="city-name">
+      </div>
+      <div class="form-group mb-3">
+        <label for="pin_code">Pin Code</label>
+        <input type="text" class="form-control" name="pin_code" id="city-pin-code">
+      </div>
+      <div class="form-group mb-3">
+        <label for="parent_id">State</label>
+        <select class="form-control" name="parent_id" id="city-state">
+          {% for state in states %}
+          <option value="{{ state.id }}">{{ state.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-success">Create</button>
+    <a href="{{ url_for('admin.manage_geography') }}" class="btn btn-secondary">Cancel</a>
+  </form>
+</div>
+<script>
+function showFields() {
+  var entity = document.getElementById('entity').value;
+  document.getElementById('continent-fields').style.display = (entity === 'continent') ? 'block' : 'none';
+  document.getElementById('country-fields').style.display = (entity === 'country') ? 'block' : 'none';
+  document.getElementById('state-fields').style.display = (entity === 'state') ? 'block' : 'none';
+  document.getElementById('city-fields').style.display = (entity === 'city') ? 'block' : 'none';
+}
+</script>
+{% endblock %} 

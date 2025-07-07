@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+  <a href="{{ url_for('admin.list_spots') }}" class="btn btn-secondary mb-3">Back to Spots</a>
+  <h2>Edit Parking Spot</h2>
+  <form method="post">
+    <div class="form-group mb-3">
+      <label for="status">Status</label>
+      <select class="form-control" name="status" id="status">
+        <option value="AVAILABLE" {% if spot.status.value == 'available' %}selected{% endif %}>Available</option>
+        <option value="OCCUPIED" {% if spot.status.value == 'occupied' %}selected{% endif %}>Occupied</option>
+        <option value="RESERVED" {% if spot.status.value == 'reserved' %}selected{% endif %}>Reserved</option>
+      </select>
+    </div>
+    <button type="submit" class="btn btn-success">Update</button>
+    <a href="{{ url_for('admin.list_spots') }}" class="btn btn-secondary">Cancel</a>
+  </form>
+</div>
+{% endblock %} 

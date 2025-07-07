@@ -1,11 +1,47 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-</head>
-<body>
-    
-</body>
-</html>
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+  <a href="{{ url_for('admin.manage_users') }}" class="btn btn-secondary mb-3">Back to Users</a>
+  <h2>Edit User</h2>
+  <form method="post">
+    <div class="form-group mb-3">
+      <label for="username">Username</label>
+      <input type="text" class="form-control" name="username" id="username" value="{{ user.username }}" required>
+    </div>
+    <div class="form-group mb-3">
+      <label for="email">Email</label>
+      <input type="email" class="form-control" name="email" id="email" value="{{ user.email }}" required>
+    </div>
+    <div class="form-group mb-3">
+      <label for="first_name">First Name</label>
+      <input type="text" class="form-control" name="first_name" id="first_name" value="{{ user.first_name or '' }}">
+    </div>
+    <div class="form-group mb-3">
+      <label for="last_name">Last Name</label>
+      <input type="text" class="form-control" name="last_name" id="last_name" value="{{ user.last_name or '' }}">
+    </div>
+    <div class="form-group mb-3">
+      <label for="phone">Phone</label>
+      <input type="text" class="form-control" name="phone" id="phone" value="{{ user.phone or '' }}">
+    </div>
+    <div class="form-group mb-3">
+      <label for="gender">Gender</label>
+      <select class="form-control" name="gender" id="gender">
+        <option value="male" {% if user.gender and user.gender.value == 'male' %}selected{% endif %}>Male</option>
+        <option value="female" {% if user.gender and user.gender.value == 'female' %}selected{% endif %}>Female</option>
+        <option value="other" {% if user.gender and user.gender.value == 'other' %}selected{% endif %}>Other</option>
+      </select>
+    </div>
+    <div class="form-group mb-3">
+      <label for="status">Status</label>
+      <select class="form-control" name="status" id="status">
+        <option value="active" {% if user.status and user.status.value == 'active' %}selected{% endif %}>Active</option>
+        <option value="pending" {% if user.status and user.status.value == 'pending' %}selected{% endif %}>Pending</option>
+        <option value="inactive" {% if user.status and user.status.value == 'inactive' %}selected{% endif %}>Inactive</option>
+      </select>
+    </div>
+    <button type="submit" class="btn btn-success">Update</button>
+    <a href="{{ url_for('admin.manage_users') }}" class="btn btn-secondary">Cancel</a>
+  </form>
+</div>
+{% endblock %}

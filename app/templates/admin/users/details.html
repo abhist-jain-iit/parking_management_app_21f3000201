@@ -1,11 +1,42 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-</head>
-<body>
-    
-</body>
-</html>
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+  <a href="{{ url_for('admin.manage_users') }}" class="btn btn-secondary mb-3">Back to Users</a>
+  <h2>User Details</h2>
+  <div class="mb-3">
+    <strong>Username:</strong> {{ user.username }}<br>
+    <strong>Email:</strong> {{ user.email }}<br>
+    <strong>First Name:</strong> {{ user.first_name or '' }}<br>
+    <strong>Last Name:</strong> {{ user.last_name or '' }}<br>
+    <strong>Phone:</strong> {{ user.phone or '' }}<br>
+    <strong>Gender:</strong> {{ user.gender.value if user.gender else '' }}<br>
+    <strong>Status:</strong> {{ user.status.value if user.status else '' }}<br>
+    <strong>Registered:</strong> {{ user.created_at }}<br>
+  </div>
+  <a href="{{ url_for('admin.edit_user', user_id=user.id) }}" class="btn btn-warning mb-3">Edit User</a>
+  <a href="{{ url_for('admin.manage_users') }}" class="btn btn-secondary mb-3">Back to Users</a>
+  <h4>Reservations</h4>
+  <table class="table table-bordered table-striped">
+    <thead>
+      <tr>
+        <th>Spot</th>
+        <th>Status</th>
+        <th>Start Time</th>
+        <th>End Time</th>
+        <th>Cost</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for reservation in reservations %}
+      <tr>
+        <td>{{ reservation.parking_spot.spot_number if reservation.parking_spot else '' }}</td>
+        <td>{{ reservation.status }}</td>
+        <td>{{ reservation.start_time }}</td>
+        <td>{{ reservation.end_time }}</td>
+        <td>{{ reservation.total_cost }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

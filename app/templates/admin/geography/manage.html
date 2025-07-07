@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+  <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-secondary mb-3">Back to Admin Dashboard</a>
+  <h2>Geography Management</h2>
+  <a href="{{ url_for('admin.create_geography') }}" class="btn btn-primary mb-3">Add New Geography</a>
+  <div class="row">
+    <div class="col-md-3">
+      <h4>Continents</h4>
+      <ul class="list-group">
+        {% for continent in continents %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          {{ continent.name }} ({{ continent.code }})
+          <span>
+            <a href="{{ url_for('admin.edit_geography', entity='continent', entity_id=continent.id) }}" class="btn btn-sm btn-warning">Edit</a>
+            <form action="{{ url_for('admin.delete_geography', entity='continent', entity_id=continent.id) }}" method="post" style="display:inline;">
+              <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+            </form>
+          </span>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    <div class="col-md-3">
+      <h4>Countries</h4>
+      <ul class="list-group">
+        {% for country in countries %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          {{ country.name }} ({{ country.code }})
+          <span>
+            <a href="{{ url_for('admin.edit_geography', entity='country', entity_id=country.id) }}" class="btn btn-sm btn-warning">Edit</a>
+            <form action="{{ url_for('admin.delete_geography', entity='country', entity_id=country.id) }}" method="post" style="display:inline;">
+              <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+            </form>
+          </span>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    <div class="col-md-3">
+      <h4>States</h4>
+      <ul class="list-group">
+        {% for state in states %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          {{ state.name }} ({{ state.code }})
+          <span>
+            <a href="{{ url_for('admin.edit_geography', entity='state', entity_id=state.id) }}" class="btn btn-sm btn-warning">Edit</a>
+            <form action="{{ url_for('admin.delete_geography', entity='state', entity_id=state.id) }}" method="post" style="display:inline;">
+              <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+            </form>
+          </span>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    <div class="col-md-3">
+      <h4>Cities</h4>
+      <ul class="list-group">
+        {% for city in cities %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          {{ city.name }} ({{ city.pin_code or '' }})
+          <span>
+            <a href="{{ url_for('admin.edit_geography', entity='city', entity_id=city.id) }}" class="btn btn-sm btn-warning">Edit</a>
+            <form action="{{ url_for('admin.delete_geography', entity='city', entity_id=city.id) }}" method="post" style="display:inline;">
+              <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+            </form>
+          </span>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %} 

@@ -1,0 +1,36 @@
+{% extends 'home.html' %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Parking Spot Details</h2>
+  <div class="mb-3">
+    <strong>Spot Number:</strong> {{ spot.spot_number }}<br>
+    <strong>Status:</strong> {{ spot.status }}<br>
+    <strong>Lot:</strong> {{ spot.parking_lot.name if spot.parking_lot else '' }}<br>
+  </div>
+  <a href="{{ url_for('admin.edit_parking_spot', spot_id=spot.id) }}" class="btn btn-warning mb-3">Edit Spot</a>
+  <a href="{{ url_for('admin.list_spots') }}" class="btn btn-secondary mb-3">Back to Spots</a>
+  <h4>Reservations for this Spot</h4>
+  <table class="table table-bordered table-striped">
+    <thead>
+      <tr>
+        <th>User</th>
+        <th>Start Time</th>
+        <th>End Time</th>
+        <th>Status</th>
+        <th>Cost</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for reservation in reservations %}
+      <tr>
+        <td>{{ reservation.user.username if reservation.user else '' }}</td>
+        <td>{{ reservation.start_time }}</td>
+        <td>{{ reservation.end_time }}</td>
+        <td>{{ reservation.status }}</td>
+        <td>{{ reservation.total_cost }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %} 

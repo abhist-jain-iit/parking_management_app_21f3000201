@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+  <a href="{{ url_for('admin.list_lots') }}" class="btn btn-secondary mb-3">Back to Lots</a>
+  <h2>Parking Spots</h2>
+  <table class="table table-bordered table-striped">
+    <thead>
+      <tr>
+        <th>Spot Number</th>
+        <th>Lot</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for spot in spots %}
+      <tr>
+        <td>{{ spot.spot_number }}</td>
+        <td>{{ spot.parking_lot.name if spot.parking_lot else '' }}</td>
+        <td>{{ spot.status.value if spot.status else spot.status }}</td>
+        <td>
+          <a href="{{ url_for('admin.view_parking_spot_details', spot_id=spot.id) }}" class="btn btn-info btn-sm">View</a>
+          <a href="{{ url_for('admin.edit_parking_spot', spot_id=spot.id) }}" class="btn btn-warning btn-sm">Edit</a>
+          <form action="{{ url_for('admin.delete_parking_spot', spot_id=spot.id) }}" method="post" style="display:inline;">
+            <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %} 

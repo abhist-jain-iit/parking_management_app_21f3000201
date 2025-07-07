@@ -3,8 +3,12 @@ from app.extensions import db
 from datetime import datetime
 from app.models import *
 from flask_jwt_extended import create_access_token, verify_jwt_in_request, get_jwt_identity, get_jwt
+from itsdangerous import URLSafeTimedSerializer
+from functools import wraps
 
 auth_bp = Blueprint('auth', __name__)
+
+serializer = URLSafeTimedSerializer('super-secret-key')
 
 # Now here lets create the route for Login.
 
@@ -211,12 +215,112 @@ def signup():
 
 @auth_bp.route('/logout', methods=['GET', 'POST'])
 def logout():
-    # Logout route that clears user session.
+    session.clear()
+    flash('You have been logged out successfully', 'info')
+    return redirect(url_for('main.index'))
+
+@auth_bp.route('/admin/login', methods=['GET', 'POST'])
+def admin_login():
     if request.method == 'POST':
-        # More secure - requires POST request
-        session.clear()
-        flash('You have been logged out successfully', 'info')
-        return redirect(url_for('index'))
-    else:
-        # GET request - show logout confirmation or redirect
-        return redirect(url_for('index'))
+        username = request.form.get('username')
+        password = request.form.get('password')
+        if username != 'admin':
+            flash('Only the admin can log in here.', 'danger')
+            return render_template('auth/admin_login.html')
+        admin = User.query.filter_by(username='admin').first()
+        if admin and admin.check_password(password):
+            session['user_id'] = admin.id
+            session['user_role'] = 'admin'
+            session['username'] = admin.username
+            flash('Welcome Admin! You are logged in successfully.', 'success')
+            return redirect(url_for('admin.admin_dashboard'))
+        else:
+            flash('Invalid admin credentials!', 'danger')
+            return render_template('auth/admin_login.html')
+    return render_template('auth/admin_login.html')
+
+@auth_bp.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        identifier = request.form.get('identifier')
+        user = User.query.filter((User.email == identifier) | (User.username == identifier)).first()
+        if not user:
+            flash('No user found with that email or username.', 'danger')
+            return render_template('auth/forgot_password.html')
+        token = serializer.dumps(user.id)
+        reset_url = url_for('auth.reset_password', token=token, _external=True)
+        flash(f'Password reset link (for demo): {reset_url}', 'info')
+        # In production, send this link via email
+        return render_template('auth/forgot_password.html')
+    return render_template('auth/forgot_password.html')
+
+@auth_bp.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    try:
+        user_id = serializer.loads(token, max_age=3600)
+    except Exception:
+        flash('Invalid or expired reset link.', 'danger')
+        return redirect(url_for('auth.forgot_password'))
+    user = User.query.get(user_id)
+    if not user:
+        flash('User not found.', 'danger')
+        return redirect(url_for('auth.forgot_password'))
+    if request.method == 'POST':
+        password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+        if not password or not confirm_password:
+            flash('Please fill out all fields.', 'danger')
+            return render_template('auth/reset_password.html')
+        if password != confirm_password:
+            flash('Passwords do not match.', 'danger')
+            return render_template('auth/reset_password.html')
+        try:
+            user.set_password(password)
+            db.session.commit()
+            flash('Password reset successful! You can now log in.', 'success')
+            return redirect(url_for('auth.login'))
+        except Exception as e:
+            db.session.rollback()
+            flash('Password reset failed. Please try again.', 'danger')
+            return render_template('auth/reset_password.html')
+    return render_template('auth/reset_password.html')
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            flash('Please log in to access this page.', 'warning')
+            return redirect(url_for('auth.login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+@auth_bp.route('/change-password', methods=['GET', 'POST'])
+@login_required
+def change_password():
+    user = User.query.get(session['user_id'])
+    if not user:
+        flash('User not found.', 'danger')
+        return redirect(url_for('auth.login'))
+    if request.method == 'POST':
+        old_password = request.form.get('old_password')
+        new_password = request.form.get('new_password')
+        confirm_password = request.form.get('confirm_password')
+        if not old_password or not new_password or not confirm_password:
+            flash('Please fill out all fields.', 'danger')
+            return render_template('auth/change_password.html')
+        if not user.check_password(old_password):
+            flash('Old password is incorrect.', 'danger')
+            return render_template('auth/change_password.html')
+        if new_password != confirm_password:
+            flash('New passwords do not match.', 'danger')
+            return render_template('auth/change_password.html')
+        try:
+            user.set_password(new_password)
+            db.session.commit()
+            flash('Password changed successfully!', 'success')
+            return redirect(url_for('main.index'))
+        except Exception as e:
+            db.session.rollback()
+            flash('Password change failed. Please try again.', 'danger')
+            return render_template('auth/change_password.html')
+    return render_template('auth/change_password.html')

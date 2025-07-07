@@ -118,7 +118,7 @@ class City(BaseModel):
     
     # Relationships
     state = db.relationship('State', back_populates='cities')
-    parking_lots = db.relationship('ParkingLot', back_populates='city')  # Connection to parking system
+    parking_lots = db.relationship('ParkingLot', back_populates='city', cascade='all, delete-orphan')  # Connection to parking system
     
     # Unique constraint
     __table_args__ = (db.UniqueConstraint('name', 'state_id', name='unique_city_per_state'),)

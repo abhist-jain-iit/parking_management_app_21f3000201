@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Parking Management App{% endblock %}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="{{ url_for('main.index') }}">ParkingApp</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav ms-auto">
+        <li class="nav-item">
+          <a class="btn btn-outline-light me-2" href="{{ url_for('main.index') }}">Home</a>
+        </li>
+        {% if session.get('user_id') and session.get('user_role') == 'admin' %}
+          <li class="nav-item">
+            <a class="btn btn-info me-2" href="{{ url_for('admin.admin_dashboard') }}">Admin Dashboard</a>
+          </li>
+          <li class="nav-item">
+            <a class="btn btn-warning me-2" href="{{ url_for('admin.admin_charts') }}">Analytics</a>
+          </li>
+        {% elif session.get('user_id') and session.get('user_role') == 'user' %}
+          <li class="nav-item">
+            <a class="btn btn-secondary me-2" href="{{ url_for('user.user_dashboard') }}">User Dashboard</a>
+          </li>
+        {% endif %}
+        {% if not session.get('user_id') %}
+          <li class="nav-item">
+            <a class="btn btn-primary me-2" href="{{ url_for('auth.login') }}">Login</a>
+          </li>
+          <li class="nav-item">
+            <a class="btn btn-success" href="{{ url_for('auth.signup') }}">Sign Up</a>
+          </li>
+        {% else %}
+          <li class="nav-item">
+            <a class="btn btn-danger" href="{{ url_for('auth.logout') }}">Logout</a>
+          </li>
+        {% endif %}
+      </ul>
+    </div>
+  </div>
+</nav>
+<div class="container mt-3">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ 'warning' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+          {{ message }}
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  // Auto-dismiss alerts after 1.5 seconds
+  document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(function() {
+      var alerts = document.querySelectorAll('.alert');
+      alerts.forEach(function(alert) {
+        var bsAlert = new bootstrap.Alert(alert);
+        bsAlert.close();
+      });
+    }, 1500);
+  });
+</script>
+</body>
+</html> 

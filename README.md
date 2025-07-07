@@ -1,7 +1,7 @@
-# 🚗 Parking Management App - V2
+# 🚗 Parking Management App - V1
 
 **Project Name:** Parking_Management_App_21f3000201  
-**Course:** MAD-2 (Mobile Application Development - 2)  
+**Course:** MAD-1 (Mobile Application Development - 1)  
 **Level:** Diploma Level Project  
 **Institution:** IITM - BS Degree Program
 
@@ -9,7 +9,7 @@
 
 ## 📘 Description
 
-This Parking Management App (V2) is developed as part of the MAD-2 course under the IITM BS Degree Program. It provides functionality for managing parking lots, users, geography, and roles with both user and admin portals. The project includes authentication, CRUD operations, and analytics features.
+This Parking Management App (V1) is developed as part of the MAD-1 course under the IITM BS Degree Program. It provides functionality for managing parking lots, users, geography, and roles with both user and admin portals. The project includes authentication, CRUD operations, and analytics features.
 
 ---
 
@@ -74,7 +74,7 @@ This Parking Management App (V2) is developed as part of the MAD-2 course under 
 ## 📦 Tech Stack
 - **Backend:** Python (Flask)
 - **Frontend:** HTML, CSS, Bootstrap, JS
-- **Database:** SQLite / PostgreSQL
+- **Database:** SQLite
 
 ---
 

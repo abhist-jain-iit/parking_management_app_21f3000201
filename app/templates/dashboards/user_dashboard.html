@@ -6,6 +6,7 @@
     <h2 class="mb-4">Welcome, {{ user.first_name }}!</h2>
     <div>
       <a href="{{ url_for('user.edit_profile') }}" class="btn btn-outline-primary">Edit Profile</a>
+      <a href="{{ url_for('user.book_reservation') }}" class="btn btn-success ms-2">Book a Reservation</a>
     </div>
   </div>
   <div class="row mb-4">
@@ -30,8 +31,8 @@
     <div class="col-md-4 mb-3">
       <div class="card h-100 shadow-sm">
         <div class="card-body">
-          <h6 class="mb-2"><i class="fa fa-history text-info"></i> Completed Reservations</h6>
-          <div class="display-6" id="completed-count">{{ completed_reservations|length }}</div>
+          <h6 class="mb-2"><i class="fa fa-wallet text-info"></i> Current Bill</h6>
+          <div class="display-6">₹{{ active_reservations|sum(attribute='total_cost') + active_reservations|selectattr('status.value', 'equalto', 'pending_vacate')|sum(attribute='total_cost') }}</div>
         </div>
       </div>
     </div>
@@ -83,14 +84,46 @@
               <tr>
                 <th>Spot</th>
                 <th>Lot</th>
+                <th>Address</th>
+                <th>Vehicle</th>
                 <th>Start Time</th>
-                <th>End Time</th>
                 <th>Status</th>
+                <th>Cost/Hour</th>
                 <th>Cost</th>
                 <th>Action</th>
               </tr>
             </thead>
-            <tbody id="active-reservations-body-js"></tbody>
+            <tbody id="active-reservations-body-js">
+              {% if active_reservations|length == 0 %}
+              <tr><td colspan="9" class="text-center text-muted">No active reservations.</td></tr>
+              {% endif %}
+              {% for r in active_reservations %}
+              <tr data-id="{{ r.id }}">
+                <td>{{ r.parking_spot.spot_number if r.parking_spot else '' }}</td>
+                <td>{{ r.parking_spot.parking_lot.name if r.parking_spot and r.parking_spot.parking_lot else '' }}</td>
+                <td>{{ r.parking_spot.parking_lot.address if r.parking_spot and r.parking_spot.parking_lot else '' }}</td>
+                <td>{{ r.vehicle_number }}</td>
+                <td>{{ r.start_time.strftime('%Y-%m-%d %H:%M') if r.start_time else '' }}</td>
+                <td>
+                  {% if r.status.value == 'pending_vacate' %}
+                    <span class="badge bg-warning text-dark" title="Waiting for admin approval">Pending Vacate</span>
+                  {% else %}
+                    <span class="badge bg-success" title="Active reservation">Active</span>
+                  {% endif %}
+                </td>
+                <td>{{ r.parking_spot.parking_lot.price_per_hour if r.parking_spot and r.parking_spot.parking_lot else '' }}</td>
+                <td>{{ r.total_cost }}</td>
+                <td>
+                  {% if r.status.value == 'active' %}
+                    <button class="btn btn-sm btn-warning vacate-btn" data-id="{{ r.id }}" title="Request to vacate this spot">Vacate</button>
+                    <button class="btn btn-sm btn-danger cancel-btn" data-id="{{ r.id }}" title="Cancel this reservation">Cancel</button>
+                  {% elif r.status.value == 'pending_vacate' %}
+                    <span class="text-muted">Awaiting admin approval</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
           </table>
           <div id="active-pagination" class="my-2" style="display:none;">
             <button class="btn btn-sm btn-outline-secondary" id="active-prev">Prev</button>
@@ -116,7 +149,24 @@
                 <th>Cost</th>
               </tr>
             </thead>
-            <tbody id="completed-reservations-body-js"></tbody>
+            <tbody id="completed-reservations-body-js">
+              {% if completed_reservations|length == 0 %}
+              <tr><td colspan="9" class="text-center text-muted">No completed reservations.</td></tr>
+              {% endif %}
+              {% for r in completed_reservations %}
+              <tr data-id="{{ r.id }}">
+                <td>{{ r.parking_spot.spot_number if r.parking_spot else '' }}</td>
+                <td>{{ r.parking_spot.parking_lot.name if r.parking_spot and r.parking_spot.parking_lot else '' }}</td>
+                <td>{{ r.vehicle_number }}</td>
+                <td>{{ r.parking_spot.parking_lot.address if r.parking_spot and r.parking_spot.parking_lot else '' }}</td>
+                <td>{{ r.start_time.strftime('%Y-%m-%d %H:%M') if r.start_time else '' }}</td>
+                <td>{{ r.end_time.strftime('%Y-%m-%d %H:%M') if r.end_time else '' }}</td>
+                <td><span class="badge bg-info" title="Reservation completed">Completed</span></td>
+                <td>{{ r.total_cost }}</td>
+                <td></td>
+              </tr>
+              {% endfor %}
+            </tbody>
           </table>
           <div id="completed-pagination" class="my-2" style="display:none;">
             <button class="btn btn-sm btn-outline-secondary" id="completed-prev">Prev</button>
@@ -136,13 +186,32 @@
               <tr>
                 <th>Spot</th>
                 <th>Lot</th>
+                <th>Vehicle</th>
+                <th>Address</th>
                 <th>Start Time</th>
                 <th>End Time</th>
                 <th>Status</th>
                 <th>Cost</th>
               </tr>
             </thead>
-            <tbody id="cancelled-reservations-body-js"></tbody>
+            <tbody id="cancelled-reservations-body-js">
+              {% if cancelled_reservations|length == 0 %}
+              <tr><td colspan="9" class="text-center text-muted">No cancelled reservations.</td></tr>
+              {% endif %}
+              {% for r in cancelled_reservations %}
+              <tr data-id="{{ r.id }}">
+                <td>{{ r.parking_spot.spot_number if r.parking_spot else '' }}</td>
+                <td>{{ r.parking_spot.parking_lot.name if r.parking_spot and r.parking_spot.parking_lot else '' }}</td>
+                <td>{{ r.vehicle_number }}</td>
+                <td>{{ r.parking_spot.parking_lot.address if r.parking_spot and r.parking_spot.parking_lot else '' }}</td>
+                <td>{{ r.start_time.strftime('%Y-%m-%d %H:%M') if r.start_time else '' }}</td>
+                <td>{{ r.end_time.strftime('%Y-%m-%d %H:%M') if r.end_time else '' }}</td>
+                <td><span class="badge bg-danger" title="Reservation cancelled">Cancelled</span></td>
+                <td>{{ r.total_cost }}</td>
+                <td></td>
+              </tr>
+              {% endfor %}
+            </tbody>
           </table>
           <div id="cancelled-pagination" class="my-2" style="display:none;">
             <button class="btn btn-sm btn-outline-secondary" id="cancelled-prev">Prev</button>
@@ -154,4 +223,51 @@
     </div>
   </div>
 </div>
+<script>
+$(function() {
+  $('.vacate-btn').click(function() {
+    if (!confirm('Are you sure you want to vacate this spot?')) return;
+    var row = $(this).closest('tr');
+    var id = $(this).data('id');
+    var btn = $(this);
+    btn.prop('disabled', true);
+    $.post('/user/vacate-reservation/' + id, function(resp) {
+      if (resp.success) {
+        row.find('td:eq(6)').html('<span class="badge bg-warning text-dark" title="Waiting for admin approval">Pending Vacate</span>');
+        row.find('td:eq(8)').html('<span class="text-muted">Awaiting admin approval</span>');
+        showFlash('Vacate request submitted. Awaiting admin approval.', 'info');
+      } else {
+        alert(resp.message);
+        btn.prop('disabled', false);
+      }
+    });
+  });
+  $('.cancel-btn').click(function() {
+    if (!confirm('Are you sure you want to cancel this reservation?')) return;
+    var row = $(this).closest('tr');
+    var id = $(this).data('id');
+    var btn = $(this);
+    btn.prop('disabled', true);
+    $.post('/user/cancel-reservation/' + id, function(resp) {
+      if (resp.success) {
+        var cancelledTable = $('#cancelled-reservations-body-js');
+        row.find('td:eq(6)').html('<span class="badge bg-danger" title="Reservation cancelled">Cancelled</span>');
+        row.find('td:eq(8)').html('');
+        cancelledTable.append(row);
+        showFlash('Reservation cancelled.', 'warning');
+      } else {
+        alert(resp.message);
+        btn.prop('disabled', false);
+      }
+    });
+  });
+});
+function showFlash(msg, type) {
+  var flash = $('<div class="alert alert-' + type + ' alert-dismissible fade show mt-3" role="alert">' +
+    msg +
+    '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>');
+  $('.container').first().prepend(flash);
+  setTimeout(function() { flash.alert('close'); }, 4000);
+}
+</script>
 {% endblock %}

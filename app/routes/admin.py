@@ -110,6 +110,8 @@ def admin_dashboard():
         states = State.query.order_by(State.created_at.desc()).limit(5).all()
         cities = City.query.order_by(City.created_at.desc()).limit(5).all()
 
+        pending_vacate_reservations = Reservation.query.filter_by(status='pending_vacate').all()
+
         return render_template('dashboards/admin_dashboard.html',
                                stats=stats,
                                recent_reservations=recent_reservations,
@@ -119,7 +121,8 @@ def admin_dashboard():
                                continents=continents,
                                countries=countries,
                                states=states,
-                               cities=cities)
+                               cities=cities,
+                               pending_vacate_reservations=pending_vacate_reservations)
 
     except Exception as e:
         flash(f"Error loading dashboard: {str(e)}", "error")
@@ -769,5 +772,26 @@ def admin_charts():
     except Exception as e:
         flash(f"Error loading charts: {str(e)}", "error")
         return render_template('admin/charts.html', stats={})
+
+@admin_bp.route('/approve-vacate/<int:reservation_id>', methods=['POST'])
+@require_permission(PermissionType.MANAGE_RESERVATIONS.value)
+def approve_vacate(reservation_id):
+    reservation = Reservation.query.get_or_404(reservation_id)
+    if reservation.status.value != 'pending_vacate':
+        return jsonify({'success': False, 'message': 'Reservation is not pending vacate.'}), 400
+    reservation.status = 'completed'
+    reservation.end_time = datetime.now()
+    # Calculate bill for time parked
+    if reservation.start_time:
+        duration = (reservation.end_time - reservation.start_time).total_seconds() / 3600
+        rate = reservation.parking_spot.parking_lot.price_per_hour if reservation.parking_spot and reservation.parking_spot.parking_lot else 0
+        reservation.total_cost = round(duration * rate, 2)
+    else:
+        reservation.total_cost = 0
+    if reservation.parking_spot:
+        reservation.parking_spot.free()
+    db.session.commit()
+    flash(f'Reservation for spot {reservation.parking_spot.spot_number} in lot {reservation.parking_spot.parking_lot.name} completed. Bill: ₹{reservation.total_cost}', 'success')
+    return jsonify({'success': True, 'message': f'Reservation completed. Bill: ₹{reservation.total_cost}'})
 
 

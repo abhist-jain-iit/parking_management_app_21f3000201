@@ -7,6 +7,9 @@ from sqlalchemy import func, or_
 from decimal import Decimal
 from functools import wraps
 from app.models.enums import PermissionType, ParkingLotStatus, SpotStatus
+from flask_login import current_user, login_required
+from app.models.parking import ParkingSpot, Reservation
+from app.models.geography import Country, State, City
 
 user_bp = Blueprint('user', __name__, url_prefix='/user')
 
@@ -14,6 +17,9 @@ user_bp = Blueprint('user', __name__, url_prefix='/user')
 @user_bp.route('/dashboard')
 @require_permission(PermissionType.VIEW_PERSONAL_SUMMARY.value)
 def user_dashboard():
+    flash_msg = request.args.get('flash')
+    if flash_msg:
+        flash(flash_msg, 'success')
     user_id = session.get('user_id')
     if not user_id:
         flash('You must be logged in to view your dashboard.', 'danger')
@@ -296,12 +302,127 @@ def get_lots():
         })
     return jsonify(result)
 
-def remove_booking_page():
-    pass
-
-@user_bp.route('/lot/<int:lot_id>', methods=['GET'])
+@user_bp.route('/lot/<int:lot_id>')
 def lot_details(lot_id):
     lot = ParkingLot.query.get_or_404(lot_id)
     spots = ParkingSpot.query.filter_by(parking_lot_id=lot.id).all()
-    return render_template('user/lot_details.html', lot=lot, spots=spots)
+    spot_dicts = [s.to_dict() for s in spots]
+    return render_template('user/lot_details.html', lot=lot, spots=spot_dicts)
+
+@user_bp.route('/book-reservation')
+@require_permission(PermissionType.MAKE_RESERVATION.value)
+def book_reservation():
+    countries = Country.query.all()
+    return render_template('user/book_reservation.html', countries=countries)
+
+@user_bp.route('/api/states')
+def api_get_states():
+    country_id = request.args.get('country_id', type=int)
+    states = State.query.filter_by(country_id=country_id).all() if country_id else []
+    return jsonify([{'id': s.id, 'name': s.name} for s in states])
+
+@user_bp.route('/api/cities')
+def api_get_cities():
+    state_id = request.args.get('state_id', type=int)
+    cities = City.query.filter_by(state_id=state_id).all() if state_id else []
+    return jsonify([{'id': c.id, 'name': c.name} for c in cities])
+
+@user_bp.route('/api/lots')
+def api_get_lots():
+    country_id = request.args.get('country_id', type=int)
+    state_id = request.args.get('state_id', type=int)
+    city_id = request.args.get('city_id', type=int)
+    from app.models.geography import City, State
+    query = ParkingLot.query
+    if city_id:
+        query = query.filter_by(city_id=city_id)
+    elif state_id:
+        city_ids = [c.id for c in City.query.filter_by(state_id=state_id).all()]
+        query = query.filter(ParkingLot.city_id.in_(city_ids))
+    elif country_id:
+        state_ids = [s.id for s in State.query.filter_by(country_id=country_id).all()]
+        city_ids = [c.id for c in City.query.filter(City.state_id.in_(state_ids)).all()]
+        query = query.filter(ParkingLot.city_id.in_(city_ids))
+    lots = query.all()
+    return jsonify([{
+        'id': l.id,
+        'name': l.name,
+        'address': l.address,
+        'available_spots': l.available_spots,
+        'price_per_hour': float(l.price_per_hour)
+    } for l in lots])
+
+@user_bp.route('/api/lot-spots/<int:lot_id>')
+def api_lot_spots(lot_id):
+    spots = ParkingSpot.query.filter_by(parking_lot_id=lot_id).all()
+    return jsonify([{'id': s.id, 'spot_number': s.spot_number, 'status': s.status.value} for s in spots])
+
+@user_bp.route('/book-spot/<int:spot_id>', methods=['POST'])
+@login_required
+@require_permission(PermissionType.MAKE_RESERVATION.value)
+def book_spot(spot_id):
+    if not current_user.is_authenticated:
+        return jsonify({'success': False, 'message': 'You must be logged in to book a spot.'}), 401
+    spot = ParkingSpot.query.get_or_404(spot_id)
+    if spot.status.value != 'available':
+        return jsonify({'success': False, 'message': 'Spot is not available.'}), 400
+    data = request.get_json()
+    vehicle_number = data.get('vehicle_number', '').strip()
+    if not vehicle_number:
+        return jsonify({'success': False, 'message': 'Invalid input.'}), 400
+    start_time = datetime.now()
+    reservation = Reservation(
+        user_id=current_user.id,
+        parking_spot_id=spot.id,
+        start_time=start_time,
+        end_time=None,
+        vehicle_number=vehicle_number,
+        total_cost=0,
+        status='active'
+    )
+    spot.status = 'reserved'
+    db.session.add(reservation)
+    db.session.commit()
+    lot = spot.parking_lot
+    return jsonify({
+        'success': True,
+        'message': f'Reservation confirmed! Spot {spot.spot_number} in lot {lot.name} booked.',
+        'spot_number': spot.spot_number,
+        'lot_name': lot.name,
+        'lot_id': lot.id
+    })
+
+@user_bp.route('/vacate-reservation/<int:reservation_id>', methods=['POST'])
+@login_required
+def vacate_reservation(reservation_id):
+    reservation = Reservation.query.get_or_404(reservation_id)
+    if reservation.user_id != current_user.id:
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+    if reservation.status.value != 'active':
+        return jsonify({'success': False, 'message': 'Only active reservations can be vacated.'}), 400
+    reservation.status = 'pending_vacate'
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'Vacate request submitted. Awaiting admin approval.'})
+
+@user_bp.route('/cancel-reservation/<int:reservation_id>', methods=['POST'])
+@login_required
+def cancel_reservation(reservation_id):
+    reservation = Reservation.query.get_or_404(reservation_id)
+    if reservation.user_id != current_user.id:
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+    if reservation.status.value != 'active':
+        return jsonify({'success': False, 'message': 'Only active reservations can be cancelled.'}), 400
+    reservation.status = 'cancelled'
+    reservation.end_time = datetime.now()
+    # Calculate bill for time parked (if any)
+    if reservation.start_time:
+        duration = (reservation.end_time - reservation.start_time).total_seconds() / 3600
+        rate = reservation.parking_spot.parking_lot.price_per_hour if reservation.parking_spot and reservation.parking_spot.parking_lot else 0
+        reservation.total_cost = round(duration * rate, 2)
+    else:
+        reservation.total_cost = 0
+    if reservation.parking_spot:
+        reservation.parking_spot.free()
+    db.session.commit()
+    return jsonify({'success': True, 'message': f'Reservation cancelled. Bill: ₹{reservation.total_cost}'})
                            

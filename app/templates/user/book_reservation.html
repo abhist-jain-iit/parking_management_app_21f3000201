@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+  <h2 class="mb-4">Book a Reservation</h2>
+  <form id="filter-form" class="row g-3 mb-4">
+    <div class="col-md-3">
+      <label for="country" class="form-label">Country</label>
+      <select id="country" name="country" class="form-select">
+        <option value="">Select Country</option>
+        {% for country in countries %}
+        <option value="{{ country.id }}">{{ country.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label for="state" class="form-label">State</label>
+      <select id="state" name="state" class="form-select" disabled>
+        <option value="">Select State</option>
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label for="city" class="form-label">City</label>
+      <select id="city" name="city" class="form-select" disabled>
+        <option value="">Select City</option>
+      </select>
+    </div>
+    <div class="col-md-3 d-flex align-items-end">
+      <button type="button" id="show-all-lots" class="btn btn-secondary w-100">Show All Lots</button>
+    </div>
+  </form>
+  <div class="row mb-3">
+    <div class="col-md-6">
+      <input type="text" id="lot-search" class="form-control" placeholder="Search lots by name...">
+    </div>
+  </div>
+  <div id="lots-section">
+    <!-- Lots will be loaded here dynamically -->
+  </div>
+</div>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+let allLots = [];
+function renderLots(lots) {
+  if (lots.length === 0) {
+    $('#lots-section').html('<div class="alert alert-warning">No lots found.</div>');
+  } else {
+    var html = '<div class="row">';
+    $.each(lots, function(i, lot) {
+      html += '<div class="col-md-4 mb-3"><div class="card h-100"><div class="card-body">';
+      html += '<h5>'+lot.name+'</h5>';
+      html += '<div><b>Address:</b> '+lot.address+'</div>';
+      html += '<div><b>Available Spots:</b> '+lot.available_spots+'</div>';
+      html += '<div><b>Price/hr:</b> ₹'+lot.price_per_hour+'</div>';
+      html += '<a href="/user/lot/'+lot.id+'" class="btn btn-primary mt-2">Book a Spot</a>';
+      html += '</div></div></div>';
+    });
+    html += '</div>';
+    $('#lots-section').html(html);
+  }
+}
+
+function loadLots() {
+  var countryId = $('#country').val();
+  var stateId = $('#state').val();
+  var cityId = $('#city').val();
+  var params = {};
+  if (cityId) params.city_id = cityId;
+  else if (stateId) params.state_id = stateId;
+  else if (countryId) params.country_id = countryId;
+  $.get('/user/api/lots', params, function(lots) {
+    allLots = lots;
+    filterAndRenderLots();
+  }).fail(function() {
+    $('#lots-section').html('<div class="alert alert-danger">Failed to load lots. Please try again.</div>');
+  });
+}
+
+function filterAndRenderLots() {
+  var search = $('#lot-search').val().toLowerCase();
+  var filtered = allLots.filter(function(lot) {
+    return lot.name.toLowerCase().includes(search);
+  });
+  renderLots(filtered);
+}
+
+$(function() {
+  // Load all lots on page load
+  loadLots();
+
+  $('#country').change(function() {
+    var countryId = $(this).val();
+    $('#state').prop('disabled', !countryId);
+    $('#state').html('<option value="">Select State</option>');
+    $('#city').prop('disabled', true).html('<option value="">Select City</option>');
+    if (countryId) {
+      $.get('/user/api/states', {country_id: countryId}, function(states) {
+        $.each(states, function(i, state) {
+          $('#state').append('<option value="'+state.id+'">'+state.name+'</option>');
+        });
+      }).fail(function() {
+        alert('Failed to load states. Please try again.');
+      });
+    }
+    loadLots();
+  });
+  $('#state').change(function() {
+    var stateId = $(this).val();
+    $('#city').prop('disabled', !stateId);
+    $('#city').html('<option value="">Select City</option>');
+    if (stateId) {
+      $.get('/user/api/cities', {state_id: stateId}, function(cities) {
+        $.each(cities, function(i, city) {
+          $('#city').append('<option value="'+city.id+'">'+city.name+'</option>');
+        });
+      }).fail(function() {
+        alert('Failed to load cities. Please try again.');
+      });
+    }
+    loadLots();
+  });
+  $('#city').change(function() {
+    loadLots();
+  });
+  $('#show-all-lots').click(function() {
+    $('#country').val('');
+    $('#state').val('').prop('disabled', true);
+    $('#city').val('').prop('disabled', true);
+    loadLots();
+  });
+  $('#lot-search').on('input', function() {
+    filterAndRenderLots();
+  });
+});
+</script>
+{% endblock %} 

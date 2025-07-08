@@ -4,6 +4,7 @@ import re
 from app.models.base import BaseModel
 from app.models.enums import UserStatus, RoleType, GenderEnum
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask_login import UserMixin
 
 class Role(BaseModel):
     __tablename__ = "roles"
@@ -31,7 +32,7 @@ class Role(BaseModel):
     def __repr__(self):
         return f'<Role {self.name}>'
 
-class User(BaseModel):
+class User(BaseModel, UserMixin):
     __tablename__ = "users"
 
     # Basic user information
@@ -109,6 +110,10 @@ class User(BaseModel):
 
     def __repr__(self):
         return f'<User {self.username}>'
+
+    @property
+    def is_active(self):
+        return self.status == UserStatus.ACTIVE
 
 class UserRole(BaseModel):
     __tablename__ = "user_roles"

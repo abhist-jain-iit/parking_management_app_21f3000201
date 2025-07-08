@@ -5,14 +5,53 @@
   <div class="mb-2"><b>Address:</b> {{ lot.address }}<br><b>City:</b> {{ lot.city.name }}<br><b>Available Spots:</b> {{ lot.available_spots }}<br><b>Price/hr:</b> ₹{{ lot.price_per_hour }}</div>
   <div class="mb-3">
     <b>Legend:</b>
-    <span class="badge bg-success">A</span> Available
-    <span class="badge bg-danger">NA</span> Not Available
+    <span class="badge bg-success">O</span> Open/Available
+    <span class="badge bg-danger">NA</span> Not Available (Occupied)
+    <span class="badge bg-warning text-dark">R</span> Reserved
+    <span class="badge bg-warning text-dark">UM</span> Under Maintenance
     <span class="badge bg-primary">B</span> Banned
-    <span class="badge bg-warning text-dark">UE</span> Under Maintenance
   </div>
   <div id="spot-map" class="mb-4"></div>
   <div id="spot-info" class="mb-3"></div>
 </div>
+<div class="modal fade" id="bookModal" tabindex="-1" aria-labelledby="bookModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="bookModalLabel">Book Spot</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="book-form">
+          <div class="mb-3">
+            <label for="vehicle-number" class="form-label">Vehicle Number</label>
+            <input type="text" class="form-control" id="vehicle-number" required>
+          </div>
+          <div id="book-error" class="text-danger mb-2"></div>
+          <button type="submit" class="btn btn-success">Book Now</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="confirmModalLabel">Confirm Booking</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        Are you sure you want to book this slot?
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="confirm-no" data-bs-dismiss="modal">No</button>
+        <button type="button" class="btn btn-success" id="confirm-yes">Yes</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   const spots = {{ spots|tojson }};
@@ -21,6 +60,9 @@ document.addEventListener('DOMContentLoaded', function() {
   const spotMapDiv = document.getElementById('spot-map');
   const spotInfoDiv = document.getElementById('spot-info');
   let selectedSpot = null;
+  let bookModal = new bootstrap.Modal(document.getElementById('bookModal'));
+  let pendingBooking = null;
+  let confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
 
   function renderSpotMap() {
     spotMapDiv.innerHTML = '';
@@ -31,10 +73,12 @@ document.addEventListener('DOMContentLoaded', function() {
         rowDiv.className = 'd-flex mb-1';
         spotMapDiv.appendChild(rowDiv);
       }
-      let symbol = 'A', badge = 'bg-success', clickable = true;
-      if (spot.status === 'occupied' || spot.status === 'reserved') { symbol = 'NA'; badge = 'bg-danger'; clickable = false; }
+      let symbol = 'O', badge = 'bg-success', clickable = true;
+      if (spot.status === 'occupied') { symbol = 'NA'; badge = 'bg-danger'; clickable = false; }
+      else if (spot.status === 'reserved') { symbol = 'R'; badge = 'bg-warning text-dark'; clickable = false; }
       else if (spot.status === 'banned') { symbol = 'B'; badge = 'bg-primary'; clickable = false; }
-      else if (spot.status === 'under_maintenance') { symbol = 'UE'; badge = 'bg-warning text-dark'; clickable = false; }
+      else if (spot.status === 'under_maintenance') { symbol = 'UM'; badge = 'bg-warning text-dark'; clickable = false; }
+      // Only O (Open/Available) is clickable
       const spotBtn = document.createElement('button');
       spotBtn.type = 'button';
       spotBtn.className = `btn btn-sm ${badge} mx-1 spot-btn`;
@@ -60,9 +104,77 @@ document.addEventListener('DOMContentLoaded', function() {
     let html = `<b>Spot:</b> ${selectedSpot.spot_number}<br><b>Status:</b> ${selectedSpot.status}`;
     if (selectedSpot.status === 'available') {
       html += `<br><b>Price/hr:</b> ₹${pricePerHour}`;
+      html += `<br><button id='book-now-btn' class='btn btn-success btn-sm mt-2'>Book Now</button>`;
     }
     spotInfoDiv.innerHTML = html;
+    if (selectedSpot.status === 'available') {
+      document.getElementById('book-now-btn').onclick = function() {
+        document.getElementById('vehicle-number').value = '';
+        document.getElementById('book-error').textContent = '';
+        bookModal.show();
+      };
+    }
   }
+
+  document.getElementById('book-form').onsubmit = function(e) {
+    e.preventDefault();
+    const vehicleNumber = document.getElementById('vehicle-number').value.trim();
+    if (!vehicleNumber) {
+      document.getElementById('book-error').textContent = 'Please enter your vehicle number.';
+      return;
+    }
+    // Store booking info and show confirmation modal
+    pendingBooking = { spotId: selectedSpot.id, vehicleNumber };
+    confirmModal.show();
+  };
+
+  document.getElementById('confirm-yes').onclick = function() {
+    if (!pendingBooking) return;
+    fetch(`/user/book-spot/${pendingBooking.spotId}`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({vehicle_number: pendingBooking.vehicleNumber})
+    })
+    .then(r => {
+      if (r.status === 401 || r.redirected) {
+        window.location.href = '/auth/login';
+        return;
+      }
+      return r.json();
+    })
+    .then(data => {
+      if (!data) return;
+      if (data.success) {
+        bookModal.hide();
+        confirmModal.hide();
+        spotInfoDiv.innerHTML = `<div class='alert alert-success'>${data.message}</div>`;
+        // Refresh map
+        fetch(`/user/api/lot-spots/${lotId}`)
+          .then(r => r.json())
+          .then(newSpots => {
+            spots.length = 0;
+            newSpots.forEach(s => spots.push(s));
+            renderSpotMap();
+            // Redirect to dashboard with flash message after short delay
+            setTimeout(function() {
+              window.location.href = `/user/dashboard?flash=${encodeURIComponent(data.message)}`;
+            }, 1800);
+          });
+      } else {
+        document.getElementById('book-error').textContent = data.message || 'Booking failed.';
+        confirmModal.hide();
+      }
+    })
+    .catch(() => {
+      document.getElementById('book-error').textContent = 'Network error. Please try again.';
+      confirmModal.hide();
+    });
+    pendingBooking = null;
+  };
+  document.getElementById('confirm-no').onclick = function() {
+    pendingBooking = null;
+    confirmModal.hide();
+  };
 
   renderSpotMap();
 });

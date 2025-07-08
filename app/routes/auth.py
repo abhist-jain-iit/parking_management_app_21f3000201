@@ -5,6 +5,7 @@ from app.models import *
 from flask_jwt_extended import create_access_token, verify_jwt_in_request, get_jwt_identity, get_jwt
 from itsdangerous import URLSafeTimedSerializer
 from functools import wraps
+from flask_login import login_user
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -40,6 +41,7 @@ def login():
         if username == 'admin':
             admin = User.query.filter_by(username='admin').first()
             if admin and admin.check_password(password):
+                login_user(admin)
                 session['user_id'] = admin.id
                 session['user_role'] = 'admin'
                 session['username'] = admin.username
@@ -67,6 +69,7 @@ def login():
                         return jsonify({'error': msg}), 403
                     flash(msg)
                     return render_template('auth/login.html')
+                login_user(user)
                 session['user_id'] = user.id
                 session['user_role'] = 'user'
                 session['username'] = user.username

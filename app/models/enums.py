@@ -33,6 +33,7 @@ class PermissionType(Enum):
     # Admin permissions
     MANAGE_USERS = "manage_users"
     MANAGE_PARKING = "manage_parking"
+    MANAGE_RESERVATIONS = "manage_reservations"
     VIEW_ANALYTICS = "view_analytics"
     VIEW_PARKING_DETAILS = "view_parking_details"
     SEARCH_PARKING_SPOTS = "search_parking_spots"
@@ -84,6 +85,7 @@ class ReservationStatus(Enum):
     ACTIVE = "active"
     COMPLETED = "completed"
     CANCELLED = "cancelled"
+    PENDING_VACATE = "pending_vacate"
     
     def def_function(self):
         return (self.value, self.value.replace('_', ' ').title())

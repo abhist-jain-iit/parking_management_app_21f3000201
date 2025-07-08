@@ -2,6 +2,7 @@
 {% block content %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <style>
   .dashboard-hero {
     background: linear-gradient(90deg, #007bff 0%, #00c6ff 100%);
@@ -171,6 +172,8 @@
       <thead class="table-light">
         <tr>
           <th>User</th>
+          <th>Vehicle</th>
+          <th>Lot</th>
           <th>Spot</th>
           <th>Status</th>
           <th>Start Time</th>
@@ -182,15 +185,23 @@
         {% for res in recent_reservations %}
         <tr>
           <td>{% if res.user %}<a href="{{ url_for('admin.view_user_details', user_id=res.user.id) }}">{{ res.user.username }}</a>{% else %}-{% endif %}</td>
-          <td>{% if res.parking_spot %}<a href="{{ url_for('admin.view_parking_spot_details', spot_id=res.parking_spot.id) }}">{{ res.parking_spot.spot_number }}</a>{% else %}-{% endif %}</td>
-          <td>{{ res.status }}</td>
+          <td>{{ res.vehicle_number }}</td>
+          <td>{% if res.parking_spot and res.parking_spot.parking_lot %}{{ res.parking_spot.parking_lot.name }}{% else %}-{% endif %}</td>
+          <td>{% if res.parking_spot %}{{ res.parking_spot.spot_number }}{% else %}-{% endif %}</td>
+          <td>
+            {% if res.status.value == 'active' %}<span class="badge bg-success">Active</span>
+            {% elif res.status.value == 'pending_vacate' %}<span class="badge bg-warning text-dark">Pending Vacate</span>
+            {% elif res.status.value == 'completed' %}<span class="badge bg-info">Completed</span>
+            {% elif res.status.value == 'cancelled' %}<span class="badge bg-danger">Cancelled</span>
+            {% else %}{{ res.status.value|capitalize }}{% endif %}
+          </td>
           <td>{{ res.start_time.strftime('%Y-%m-%d %H:%M') if res.start_time else '' }}</td>
           <td>{{ res.end_time.strftime('%Y-%m-%d %H:%M') if res.end_time else '' }}</td>
           <td>₹{{ res.total_cost|round(2) }}</td>
         </tr>
         {% endfor %}
         {% if recent_reservations|length == 0 %}
-        <tr><td colspan="6" class="text-center">No recent reservations.</td></tr>
+        <tr><td colspan="8" class="text-center">No recent reservations.</td></tr>
         {% endif %}
       </tbody>
     </table>
@@ -417,6 +428,43 @@
     </div>
   </div>
 </div>
+<!-- Pending Vacate Requests Table -->
+<div class="card shadow-sm mb-4">
+  <div class="card-header bg-warning text-dark">
+    <h5 class="mb-0"><i class="fa-solid fa-hourglass-half"></i> Pending Vacate Requests</h5>
+  </div>
+  <div class="card-body p-0">
+    <table class="table table-bordered table-striped mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>User</th>
+          <th>Vehicle</th>
+          <th>Lot</th>
+          <th>Spot</th>
+          <th>Start Time</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for res in pending_vacate_reservations %}
+        <tr>
+          <td>{% if res.user %}<a href="{{ url_for('admin.view_user_details', user_id=res.user.id) }}">{{ res.user.username }}</a>{% else %}-{% endif %}</td>
+          <td>{{ res.vehicle_number }}</td>
+          <td>{% if res.parking_spot and res.parking_spot.parking_lot %}{{ res.parking_spot.parking_lot.name }}{% else %}-{% endif %}</td>
+          <td>{% if res.parking_spot %}{{ res.parking_spot.spot_number }}{% else %}-{% endif %}</td>
+          <td>{{ res.start_time.strftime('%Y-%m-%d %H:%M') if res.start_time else '' }}</td>
+          <td><span class="badge bg-warning text-dark" title="Pending vacate">Pending Vacate</span></td>
+          <td><button class="btn btn-success btn-sm approve-vacate-btn" data-id="{{ res.id }}" title="Approve vacate">Approve</button></td>
+        </tr>
+        {% endfor %}
+        {% if pending_vacate_reservations|length == 0 %}
+        <tr><td colspan="7" class="text-center text-muted">No pending vacate requests.</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
 <script>
 const spotStatusData = {
   labels: ['Available', 'Occupied', 'Reserved'],
@@ -449,5 +497,30 @@ new Chart(ctx, {
     }
   }
 });
+$(function() {
+  $('.approve-vacate-btn').click(function() {
+    if (!confirm('Approve this vacate request?')) return;
+    var btn = $(this);
+    var row = btn.closest('tr');
+    var id = btn.data('id');
+    btn.prop('disabled', true);
+    $.post('/admin/approve-vacate/' + id, function(resp) {
+      if (resp.success) {
+        row.fadeOut(400, function() { $(this).remove(); });
+        showFlash(resp.message, 'success');
+      } else {
+        showFlash(resp.message, 'danger');
+        btn.prop('disabled', false);
+      }
+    });
+  });
+});
+function showFlash(msg, type) {
+  var flash = $('<div class="alert alert-' + type + ' alert-dismissible fade show mt-3" role="alert">' +
+    msg +
+    '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>');
+  $('.container').first().prepend(flash);
+  setTimeout(function() { flash.alert('close'); }, 4000);
+}
 </script>
 {% endblock %}

@@ -10,6 +10,8 @@
         <option value="AVAILABLE" {% if spot.status.value == 'available' %}selected{% endif %}>Available</option>
         <option value="OCCUPIED" {% if spot.status.value == 'occupied' %}selected{% endif %}>Occupied</option>
         <option value="RESERVED" {% if spot.status.value == 'reserved' %}selected{% endif %}>Reserved</option>
+        <option value="UNDER_MAINTENANCE" {% if spot.status.value == 'under_maintenance' %}selected{% endif %}>Under Maintenance</option>
+        <option value="BANNED" {% if spot.status.value == 'banned' %}selected{% endif %}>Banned</option>
       </select>
     </div>
     <button type="submit" class="btn btn-success">Update</button>

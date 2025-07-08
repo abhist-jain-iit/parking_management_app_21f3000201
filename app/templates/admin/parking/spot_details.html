@@ -4,7 +4,20 @@
   <h2>Parking Spot Details</h2>
   <div class="mb-3">
     <strong>Spot Number:</strong> {{ spot.spot_number }}<br>
-    <strong>Status:</strong> {{ spot.status }}<br>
+    <strong>Status:</strong>
+    {% if spot.status.value == 'available' %}
+      <span class="badge bg-success">Available</span>
+    {% elif spot.status.value == 'occupied' %}
+      <span class="badge bg-danger">Occupied</span>
+    {% elif spot.status.value == 'reserved' %}
+      <span class="badge bg-warning text-dark">Reserved</span>
+    {% elif spot.status.value == 'under_maintenance' %}
+      <span class="badge bg-secondary">Under Maintenance</span>
+    {% elif spot.status.value == 'banned' %}
+      <span class="badge bg-dark">Banned</span>
+    {% else %}
+      <span class="badge bg-light text-dark">{{ spot.status.value|capitalize }}</span>
+    {% endif %}<br>
     <strong>Lot:</strong> {{ spot.parking_lot.name if spot.parking_lot else '' }}<br>
   </div>
   <a href="{{ url_for('admin.edit_parking_spot', spot_id=spot.id) }}" class="btn btn-warning mb-3">Edit Spot</a>

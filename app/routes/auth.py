@@ -61,6 +61,12 @@ def login():
             # Regular user login
             user = User.query.filter_by(username=username).first()
             if user and user.check_password(password):
+                if user.status in [UserStatus.INACTIVE, UserStatus.BANNED]:
+                    msg = 'Your account is inactive or banned. Please contact support.'
+                    if request.is_json:
+                        return jsonify({'error': msg}), 403
+                    flash(msg)
+                    return render_template('auth/login.html')
                 session['user_id'] = user.id
                 session['user_role'] = 'user'
                 session['username'] = user.username
@@ -169,6 +175,12 @@ def signup():
                 
                 # Add to database
                 db.session.add(new_user)
+                db.session.flush()  # Get new_user.id before commit
+                # Assign default 'user' role (lowercase, as in DB)
+                user_role = Role.query.filter_by(name='user').first()
+                if user_role:
+                    new_user_role = UserRole(user_id=new_user.id, role_id=user_role.id)
+                    db.session.add(new_user_role)
                 db.session.commit()
                 
                 # Success response

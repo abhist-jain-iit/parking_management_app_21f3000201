@@ -125,18 +125,13 @@ def assign_permissions_to_roles():
             admin_permissions_added += 1
     print(f"Added {admin_permissions_added} permissions to Admin role")
     
-    # Assign BASIC permissions to User role
-    print(f"Assigning permissions to User role...")
-    user_permission_types = [
-        PermissionType.MAKE_RESERVATION,
-        PermissionType.VIEW_RESERVATIONS,
-        PermissionType.CANCEL_RESERVATION,
-        PermissionType.PARK_VEHICLE,
-        PermissionType.RELEASE_PARKING_SPOT,
-        PermissionType.VIEW_PERSONAL_SUMMARY,
-        PermissionType.SEARCH_PARKING_SPOTS,
-    ]
-    
+    # Assign user permissions to User role (including search_parking_spots)
+    from app.Data.data import permissions_data
+    user_permission_types = [perm_type for _, perm_type, _ in permissions_data if perm_type.name.startswith('MAKE_') or perm_type.name.startswith('VIEW_') or perm_type.name.startswith('CANCEL_') or perm_type.name.startswith('PARK_') or perm_type.name.startswith('RELEASE_')]
+    # Ensure search_parking_spots is always included
+    from app.models.enums import PermissionType
+    if PermissionType.SEARCH_PARKING_SPOTS not in user_permission_types:
+        user_permission_types.append(PermissionType.SEARCH_PARKING_SPOTS)
     user_permissions_added = 0
     for perm_type in user_permission_types:
         permission = Permission.get_by_type(perm_type)
@@ -152,7 +147,6 @@ def assign_permissions_to_roles():
                 )
                 db.session.add(role_permission)
                 user_permissions_added += 1
-    
     print(f"Added {user_permissions_added} permissions to User role")
     
     # Commit all changes

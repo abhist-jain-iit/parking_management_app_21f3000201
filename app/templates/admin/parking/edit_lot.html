@@ -28,6 +28,15 @@
       <label for="price_per_hour">Price Per Hour</label>
       <input type="number" step="0.01" class="form-control" name="price_per_hour" id="price_per_hour" value="{{ lot.price_per_hour }}" required>
     </div>
+    <div class="form-group mb-3">
+      <label for="status">Status</label>
+      <select class="form-control" name="status" id="status">
+        <option value="ACTIVE" {% if lot.status.value == 'active' %}selected{% endif %}>Active</option>
+        <option value="INACTIVE" {% if lot.status.value == 'inactive' %}selected{% endif %}>Inactive</option>
+        <option value="UNDER_MAINTENANCE" {% if lot.status.value == 'under_maintenance' %}selected{% endif %}>Under Maintenance</option>
+        <option value="BANNED" {% if lot.status.value == 'banned' %}selected{% endif %}>Banned</option>
+      </select>
+    </div>
     <button type="submit" class="btn btn-success">Update</button>
     <a href="{{ url_for('admin.list_lots') }}" class="btn btn-secondary">Cancel</a>
   </form>

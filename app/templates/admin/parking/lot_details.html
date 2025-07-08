@@ -9,6 +9,18 @@
     <strong>Total Spots:</strong> {{ lot.total_spots }}<br>
     <strong>Available Spots:</strong> {{ lot.available_spots }}<br>
     <strong>Price Per Hour:</strong> {{ lot.price_per_hour }}<br>
+    <strong>Status:</strong>
+    {% if lot.status.value == 'active' %}
+      <span class="badge bg-success">Active</span>
+    {% elif lot.status.value == 'inactive' %}
+      <span class="badge bg-secondary">Inactive</span>
+    {% elif lot.status.value == 'under_maintenance' %}
+      <span class="badge bg-warning text-dark">Under Maintenance</span>
+    {% elif lot.status.value == 'banned' %}
+      <span class="badge bg-danger">Banned</span>
+    {% else %}
+      <span class="badge bg-light text-dark">{{ lot.status.value|capitalize }}</span>
+    {% endif %}
   </div>
   <a href="{{ url_for('admin.edit_parking_lot', lot_id=lot.id) }}" class="btn btn-warning mb-3">Edit Lot</a>
   <a href="{{ url_for('admin.list_lots') }}" class="btn btn-secondary mb-3">Back to Lots</a>
@@ -25,7 +37,21 @@
       {% for spot in spots %}
       <tr>
         <td>{{ spot.spot_number }}</td>
-        <td>{{ spot.status.value if spot.status else spot.status }}</td>
+        <td>
+          {% if spot.status.value == 'available' %}
+            <span class="badge bg-success">Available</span>
+          {% elif spot.status.value == 'occupied' %}
+            <span class="badge bg-danger">Occupied</span>
+          {% elif spot.status.value == 'reserved' %}
+            <span class="badge bg-warning text-dark">Reserved</span>
+          {% elif spot.status.value == 'under_maintenance' %}
+            <span class="badge bg-secondary">Under Maintenance</span>
+          {% elif spot.status.value == 'banned' %}
+            <span class="badge bg-dark">Banned</span>
+          {% else %}
+            <span class="badge bg-light text-dark">{{ spot.status.value|capitalize }}</span>
+          {% endif %}
+        </td>
         <td>
           <a href="{{ url_for('admin.view_parking_spot_details', spot_id=spot.id) }}" class="btn btn-info btn-sm">View</a>
           <a href="{{ url_for('admin.edit_parking_spot', spot_id=spot.id) }}" class="btn btn-warning btn-sm">Edit</a>

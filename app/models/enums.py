@@ -62,7 +62,8 @@ class ParkingLotStatus(Enum):
     # Parking lot status
     ACTIVE = "active"
     INACTIVE = "inactive"
-    MAINTENANCE = "maintenance"
+    UNDER_MAINTENANCE = "under_maintenance"
+    BANNED = "banned"
     
     def def_function(self):
         return (self.value, self.value.replace('_', ' ').title())
@@ -72,6 +73,8 @@ class SpotStatus(Enum):
     AVAILABLE = "available"
     OCCUPIED = "occupied"
     RESERVED = "reserved"
+    UNDER_MAINTENANCE = "under_maintenance"
+    BANNED = "banned"
     
     def def_function(self):
         return (self.value, self.value.replace('_', ' ').title())

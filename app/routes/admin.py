@@ -8,7 +8,7 @@ from sqlalchemy import func, or_
 from decimal import Decimal
 from functools import wraps
 from app.models.geography import City
-from app.models.enums import SpotStatus, UserStatus
+from app.models.enums import SpotStatus, UserStatus, ParkingLotStatus
 from sqlalchemy.exc import IntegrityError
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
@@ -281,6 +281,11 @@ def edit_parking_lot(lot_id):
         lot.city_id = int(data.get('city_id', lot.city_id))
         lot.total_spots = int(data.get('total_spots', lot.total_spots))
         lot.price_per_hour = float(data.get('price_per_hour', lot.price_per_hour))
+        status_str = data.get('status', lot.status)
+        if isinstance(status_str, str):
+            lot.status = ParkingLotStatus[status_str.upper()]
+        else:
+            lot.status = status_str
         db.session.commit()
         flash('Parking lot updated!', 'success')
         return redirect(url_for('admin.view_parking_lot_details', lot_id=lot.id))
@@ -455,22 +460,16 @@ def search_parking_spots():
     search = request.args.get('search', '', type=str)
     status = request.args.get('status', '', type=str)
     lot_id = request.args.get('lot_id', 0, type=int)
-    availability = request.args.get('availability', '', type=str)  # available, occupied, reserved, maintenance
-    
+    availability = request.args.get('availability', '', type=str)  # available, occupied, reserved, under_maintenance, banned
     query = ParkingSpot.query
-    
     if search:
         query = query.filter(func.lower(ParkingSpot.spot_number).contains(search.lower()))
-    
     if status:
         query = query.filter_by(status=status)
-    
     if lot_id > 0:
         query = query.filter_by(parking_lot_id=lot_id)
-    
     if availability:
         query = query.filter_by(status=availability)
-    
     parking_spots = query.all()
     
     # Prepare results with statistics
@@ -548,24 +547,19 @@ def update_spot_status(spot_id):
     # Quick update parking spot status 
     try:
         parking_spot = ParkingSpot.query.get_or_404(spot_id)
-        
         # Handle JSON requests
         if request.content_type == 'application/json':
             data = request.get_json()
         else:
             data = request.form.to_dict()
-        
         new_status = data.get('status')
-        
-        if new_status not in ['available', 'occupied', 'reserved', 'maintenance']:
+        valid_statuses = ['available', 'occupied', 'reserved', 'under_maintenance', 'banned']
+        if new_status not in valid_statuses:
             error_msg = 'Invalid status provided.'
-            
             if request.content_type == 'application/json':
                 return jsonify({'success': False, 'error': error_msg}), 400
-            
             flash(error_msg, 'error')
             return redirect(url_for('admin.manage_parking_spots'))
-        
         # Check if spot can be changed to the new status
         if new_status == 'available' and parking_spot.status in ['occupied', 'reserved']:
             # Check for active reservations
@@ -573,25 +567,18 @@ def update_spot_status(spot_id):
                 parking_spot_id=spot_id,
                 status=ReservationStatus.ACTIVE
             ).count()
-            
             if active_reservations > 0:
                 error_msg = 'Cannot set spot to available. It has active reservations.'
-                
                 if request.content_type == 'application/json':
                     return jsonify({'success': False, 'error': error_msg}), 400
-                
                 flash(error_msg, 'error')
                 return redirect(url_for('admin.manage_parking_spots'))
-        
         # Update status
         old_status = parking_spot.status
         parking_spot.status = new_status
         parking_spot.updated_at = datetime.utcnow()
-        
         db.session.commit()
-        
         success_msg = f'Parking spot "{parking_spot.spot_number}" status updated from {old_status} to {new_status}.'
-        
         if request.content_type == 'application/json':
             return jsonify({
                 'success': True,
@@ -603,18 +590,13 @@ def update_spot_status(spot_id):
                     'old_status': old_status
                 }
             })
-        
         flash(success_msg, 'success')
-        
     except Exception as e:
         db.session.rollback()
         error_msg = f'Error updating parking spot status: {str(e)}'
-        
         if request.content_type == 'application/json':
             return jsonify({'success': False, 'error': error_msg}), 500
-        
         flash(error_msg, 'error')
-    
     return redirect(url_for('admin.manage_parking_spots'))
 
 # --- Geography Management (Admin CRUD) ---

@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+  <h2 class="mb-4">Lot: {{ lot.name }}</h2>
+  <div class="mb-2"><b>Address:</b> {{ lot.address }}<br><b>City:</b> {{ lot.city.name }}<br><b>Available Spots:</b> {{ lot.available_spots }}<br><b>Price/hr:</b> ₹{{ lot.price_per_hour }}</div>
+  <div class="mb-3">
+    <b>Legend:</b>
+    <span class="badge bg-success">A</span> Available
+    <span class="badge bg-danger">NA</span> Not Available
+    <span class="badge bg-primary">B</span> Banned
+    <span class="badge bg-warning text-dark">UE</span> Under Maintenance
+  </div>
+  <div id="spot-map" class="mb-4"></div>
+  <div id="spot-info" class="mb-3"></div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const spots = {{ spots|tojson }};
+  const lotId = {{ lot.id }};
+  const pricePerHour = {{ lot.price_per_hour }};
+  const spotMapDiv = document.getElementById('spot-map');
+  const spotInfoDiv = document.getElementById('spot-info');
+  let selectedSpot = null;
+
+  function renderSpotMap() {
+    spotMapDiv.innerHTML = '';
+    let rowDiv = null;
+    spots.forEach((spot, idx) => {
+      if (idx % 10 === 0) {
+        rowDiv = document.createElement('div');
+        rowDiv.className = 'd-flex mb-1';
+        spotMapDiv.appendChild(rowDiv);
+      }
+      let symbol = 'A', badge = 'bg-success', clickable = true;
+      if (spot.status === 'occupied' || spot.status === 'reserved') { symbol = 'NA'; badge = 'bg-danger'; clickable = false; }
+      else if (spot.status === 'banned') { symbol = 'B'; badge = 'bg-primary'; clickable = false; }
+      else if (spot.status === 'under_maintenance') { symbol = 'UE'; badge = 'bg-warning text-dark'; clickable = false; }
+      const spotBtn = document.createElement('button');
+      spotBtn.type = 'button';
+      spotBtn.className = `btn btn-sm ${badge} mx-1 spot-btn`;
+      spotBtn.textContent = symbol;
+      spotBtn.title = `Spot ${spot.spot_number} (${spot.status})`;
+      spotBtn.disabled = !clickable;
+      spotBtn.style.width = '32px';
+      spotBtn.style.height = '32px';
+      spotBtn.setAttribute('data-spot-id', spot.id);
+      spotBtn.setAttribute('data-spot-number', spot.spot_number);
+      if (clickable) {
+        spotBtn.onclick = function() {
+          selectedSpot = spot;
+          showSpotInfo();
+        };
+      }
+      rowDiv.appendChild(spotBtn);
+    });
+  }
+
+  function showSpotInfo() {
+    if (!selectedSpot) return;
+    let html = `<b>Spot:</b> ${selectedSpot.spot_number}<br><b>Status:</b> ${selectedSpot.status}`;
+    if (selectedSpot.status === 'available') {
+      html += `<br><b>Price/hr:</b> ₹${pricePerHour}`;
+    }
+    spotInfoDiv.innerHTML = html;
+  }
+
+  renderSpotMap();
+});
+</script>
+{% endblock %} 

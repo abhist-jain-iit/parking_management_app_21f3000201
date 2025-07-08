@@ -52,7 +52,11 @@ class ParkingLot(BaseModel):
             'total_spots': self.total_spots,
             'available_spots': self.available_spots,
             'price_per_hour': float(self.price_per_hour),
-            'status': self.status.value
+            'status': self.status.value,
+            'spots': [
+                {'spot_number': spot.spot_number, 'status': spot.status.value}
+                for spot in self.parking_spots
+            ]
         })
         return base_dict
 

@@ -19,6 +19,17 @@
       <span class="badge bg-light text-dark">{{ spot.status.value|capitalize }}</span>
     {% endif %}<br>
     <strong>Lot:</strong> {{ spot.parking_lot.name if spot.parking_lot else '' }}<br>
+    <form method="post" action="{{ url_for('admin.update_spot_status', spot_id=spot.id) }}" class="mt-2">
+      <label for="status">Change Status:</label>
+      <select name="status" id="status" class="form-select d-inline w-auto mx-2">
+        <option value="available" {% if spot.status.value == 'available' %}selected{% endif %}>Available</option>
+        <option value="reserved" {% if spot.status.value == 'reserved' %}selected{% endif %}>Reserved</option>
+        <option value="occupied" {% if spot.status.value == 'occupied' %}selected{% endif %}>Occupied</option>
+        <option value="under_maintenance" {% if spot.status.value == 'under_maintenance' %}selected{% endif %}>Under Maintenance</option>
+        <option value="banned" {% if spot.status.value == 'banned' %}selected{% endif %}>Banned</option>
+      </select>
+      <button type="submit" class="btn btn-sm btn-primary">Update</button>
+    </form>
   </div>
   <a href="{{ url_for('admin.edit_parking_spot', spot_id=spot.id) }}" class="btn btn-warning mb-3">Edit Spot</a>
   <a href="{{ url_for('admin.list_spots') }}" class="btn btn-secondary mb-3">Back to Spots</a>

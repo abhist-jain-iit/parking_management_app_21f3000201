@@ -6,11 +6,11 @@ from app.models import (
     ParkingLot, ParkingSpot, Reservation, ParkingLotStatus, SpotStatus
 )
 from decimal import Decimal
-from app.Data.data import GEOGRAPHY_DATA , parking_lots_data , permissions_data, USERS_DATA
+from app.Data.data import GEOGRAPHY_DATA, parking_lots_data, permissions_data, USERS_DATA
 
 def create_roles():
-    print("Creating default roles...")
-    # Admin role
+    """Create the basic user roles - Admin and Regular User"""
+    # Create admin role (full system access)
     admin_role = Role.query.filter_by(name=RoleType.ADMIN.value).first()
     if not admin_role:
         admin_role = Role(
@@ -19,11 +19,8 @@ def create_roles():
             description="System administrator with full access"
         )
         db.session.add(admin_role)
-        print("Created admin role")
-    else:
-        print("Admin role already exists")
 
-    # User role
+    # Create regular user role (limited access)
     user_role = Role.query.filter_by(name=RoleType.USER.value).first()
     if not user_role:
         user_role = Role(
@@ -32,17 +29,15 @@ def create_roles():
             description="Regular user with basic permissions"
         )
         db.session.add(user_role)
-        print("Created user role")
-    else:
-        print("User role already exists")
     
     db.session.commit()
     return admin_role, user_role
 
 def create_admin_user():
-    print("Creating default admin user...")
+    """Create the default admin user account"""
     admin_user = User.query.filter_by(username='admin').first()
     if not admin_user:
+        # Create admin user with default credentials
         admin_user = User(
             email="admin@parkingsystem.com",
             username='admin',
@@ -54,9 +49,9 @@ def create_admin_user():
         )
         admin_user.set_password('Admin@123')
         db.session.add(admin_user)
-        db.session.flush()  # Get ID without committing
+        db.session.flush()
 
-        # Assign admin role
+        # Give admin user the admin role
         admin_role = Role.query.filter_by(name=RoleType.ADMIN.value).first()
         if admin_role:
             user_role_assignment = UserRole(
@@ -65,16 +60,11 @@ def create_admin_user():
             )
             db.session.add(user_role_assignment)
 
-        print("Created admin user (username: admin, password: Admin@123)")
-    else:
-        print("Admin user already exists")
-
     db.session.commit()
     return admin_user
 
 def create_permissions():
-    # Create system permissions
-    print("Creating permissions...")
+    """Create all the system permissions (what users can and cannot do)"""
     created_permissions = []
     for name, perm_type, description in permissions_data:
         existing_permission = Permission.query.filter_by(permission_type=perm_type).first()
@@ -86,30 +76,22 @@ def create_permissions():
             )
             db.session.add(permission)
             created_permissions.append(permission)
-            print(f"Created permission: {name}")
         else:
             created_permissions.append(existing_permission)
-            print(f"Permission already exists: {name}")
     
     db.session.commit()
     return created_permissions
 
 def assign_permissions_to_roles():
-    # Assign permissions to roles (not individual users).
-    print("Assigning permissions to roles...")
-    # Get all roles
+    """Give different permissions to different user roles"""
     admin_role = Role.query.filter_by(name=RoleType.ADMIN.value).first()
     user_role = Role.query.filter_by(name=RoleType.USER.value).first()
     
     if not admin_role or not user_role:
-        print("Error: Required roles not found!")
         return
     
-    # Assign ALL permissions to Admin role
-    print(f"Assigning permissions to Admin role...")
+    # Give admin ALL permissions (full system access)
     all_permissions = Permission.query.all()
-    admin_permissions_added = 0
-    
     for permission in all_permissions:
         existing_role_perm = RolePermission.query.filter_by(
             role_id=admin_role.id,
@@ -122,17 +104,15 @@ def assign_permissions_to_roles():
                 permission_id=permission.id
             )
             db.session.add(role_permission)
-            admin_permissions_added += 1
-    print(f"Added {admin_permissions_added} permissions to Admin role")
     
-    # Assign user permissions to User role (including search_parking_spots)
-    from app.Data.data import permissions_data
-    user_permission_types = [perm_type for _, perm_type, _ in permissions_data if perm_type.name.startswith('MAKE_') or perm_type.name.startswith('VIEW_') or perm_type.name.startswith('CANCEL_') or perm_type.name.startswith('PARK_') or perm_type.name.startswith('RELEASE_')]
-    # Ensure search_parking_spots is always included
-    from app.models.enums import PermissionType
+    # Give regular users only basic permissions (book spots, view lots, etc.)
+    user_permission_types = [perm_type for _, perm_type, _ in permissions_data 
+                           if perm_type.name.startswith(('MAKE_', 'VIEW_', 'CANCEL_', 'PARK_', 'RELEASE_'))]
+    
+    # Always give users permission to search for parking spots
     if PermissionType.SEARCH_PARKING_SPOTS not in user_permission_types:
         user_permission_types.append(PermissionType.SEARCH_PARKING_SPOTS)
-    user_permissions_added = 0
+        
     for perm_type in user_permission_types:
         permission = Permission.get_by_type(perm_type)
         if permission:
@@ -146,21 +126,15 @@ def assign_permissions_to_roles():
                     permission_id=permission.id
                 )
                 db.session.add(role_permission)
-                user_permissions_added += 1
-    print(f"Added {user_permissions_added} permissions to User role")
     
-    # Commit all changes
     db.session.commit()
-    print("Successfully assigned permissions to roles")
-
 
 def create_geography_data():
-    # Initialize geography data.
-    print("Creating geography data...")
-    
+    """Create sample geography data (continents, countries, states, cities)"""
     for continent_data in GEOGRAPHY_DATA['continents']:
         existing_continent = Continent.query.filter_by(name=continent_data['name']).first()
         if not existing_continent:
+            # Create continent
             continent = Continent(
                 name=continent_data['name'],
                 code=continent_data['code'],
@@ -198,30 +172,22 @@ def create_geography_data():
                                 for city_data in GEOGRAPHY_DATA['cities'][state_data['name']]:
                                     city = City(
                                         name=city_data['name'],
+                                        code=city_data['code'],
                                         state_id=state.id,
-                                        pin_code=city_data.get('pin_code'),
                                         status=GeographyStatus.ACTIVE
                                     )
                                     db.session.add(city)
-            
-            print(f"Created continent: {continent_data['name']}")
-        else:
-            print(f"Continent already exists: {continent_data['name']}")
     
-    db.session.commit()  #Reason for doing db.flush() is that we dont want the changes to be permanently store in the db till the time whole loops gets over because it by any change exception occurs in between then in any case it wont enter the loop and will create the problem.
-    # Once all changes and steps we want to do are over we commit our changes.
-    
+    db.session.commit()
 
 def create_sample_parking_data():
-    # Create sample parking lots and spots.
-    print("Creating sample parking data...")
-    
-   
+    """Create sample parking lots and parking spots"""
     for lot_data in parking_lots_data:
         city = City.query.filter_by(name=lot_data['city_name']).first()
         if city:
             existing_lot = ParkingLot.query.filter_by(name=lot_data['name']).first()
             if not existing_lot:
+                # Create parking lot
                 parking_lot = ParkingLot(
                     name=lot_data['name'],
                     address=lot_data['address'],
@@ -234,7 +200,7 @@ def create_sample_parking_data():
                 db.session.add(parking_lot)
                 db.session.flush()
                 
-                # Create parking spots
+                # Create individual parking spots in this lot
                 for i in range(1, lot_data['total_spots'] + 1):
                     parking_spot = ParkingSpot(
                         spot_number=f"A{i:03d}",
@@ -242,97 +208,68 @@ def create_sample_parking_data():
                         status=SpotStatus.AVAILABLE
                     )
                     db.session.add(parking_spot)
-                
-                print(f"Created parking lot: {lot_data['name']} with {lot_data['total_spots']} spots")
-            else:
-                print(f"Parking lot already exists: {lot_data['name']}")
     
     db.session.commit()
 
 def create_sample_users():
-    print("Creating sample users...")
-    user_role = Role.query.filter_by(name=RoleType.USER.value).first()
+    """Create sample user accounts for testing"""
     for user_data in USERS_DATA:
-        if User.query.filter_by(username=user_data['username']).first():
-            print(f"User already exists: {user_data['username']}")
-            continue
-        user = User(
-            username=user_data['username'],
-            email=user_data['email'],
-            phone=user_data['phone'],
-            first_name=user_data['first_name'],
-            last_name=user_data['last_name'],
-            gender=GenderEnum(user_data['gender']),
-            status=UserStatus(user_data['status'])
-        )
-        user.set_password(user_data['password'])
-        db.session.add(user)
-        db.session.flush()
-        if user_role:
-            user_role_assignment = UserRole(user_id=user.id, role_id=user_role.id)
-            db.session.add(user_role_assignment)
-        print(f"Created user: {user.username}")
+        existing_user = User.query.filter_by(username=user_data['username']).first()
+        if not existing_user:
+            # Create user account
+            user = User(
+                email=user_data['email'],
+                username=user_data['username'],
+                first_name=user_data['first_name'],
+                last_name=user_data['last_name'],
+                phone=user_data['phone'],
+                gender=user_data['gender'],
+                status=user_data['status']
+            )
+            user.set_password(user_data['password'])
+            db.session.add(user)
+            db.session.flush()
+            
+            # Give user the regular user role
+            user_role = Role.query.filter_by(name=RoleType.USER.value).first()
+            if user_role:
+                user_role_assignment = UserRole(
+                    user_id=user.id,
+                    role_id=user_role.id
+                )
+                db.session.add(user_role_assignment)
+    
     db.session.commit()
 
 def init_database(app):
-    # Updated initialization function 
+    """Initialize the database with all required data (run once when app starts)"""
     with app.app_context():
         try:
-            print("=" * 50)
-            print("INITIALIZING PARKING MANAGEMENT DATABASE")
-            print("=" * 50)
-            
-            # Create all tables
-            print("Creating database tables...")
+            # Create all database tables
             db.create_all()
-            print("Database tables created successfully")
             
-            # Create roles
+            # Create user roles (admin and regular user)
             admin_role, user_role = create_roles()
             
-            # Create permissions
+            # Create system permissions
             create_permissions()
             
-            # Assign permissions to roles (NOT individual users)
+            # Assign permissions to roles (what each role can do)
             assign_permissions_to_roles()
             
-            # Create admin user (this should come after role permissions are set)
-            admin_user = create_admin_user()
+            # Create admin user account
+            create_admin_user()
             
-            # Create sample users (excluding admin)
+            # Create sample user accounts
             create_sample_users()
             
-            # Create geography data
+            # Create sample geography data
             create_geography_data()
             
-            # Create sample parking data
+            # Create sample parking lots and spots
             create_sample_parking_data()
             
-            print("\n" + "=" * 50)
-            print("DATABASE INITIALIZATION COMPLETED SUCCESSFULLY!")
-            print("=" * 50)
-            
-            # Print summary
-            print(f"\nSUMMARY:")
-            print(f"   Roles: {Role.query.count()}")
-            print(f"   Users: {User.query.count()}")
-            print(f"   Permissions: {Permission.query.count()}")
-            print(f"   Role-Permission Assignments: {RolePermission.query.count()}")
-            print(f"   User-Role Assignments: {UserRole.query.count()}")
-            print(f"   Continents: {Continent.query.count()}")
-            print(f"   Countries: {Country.query.count()}")
-            print(f"   States: {State.query.count()}")
-            print(f"   Cities: {City.query.count()}")
-            print(f"   Parking Lots: {ParkingLot.query.count()}")
-            print(f"   Parking Spots: {ParkingSpot.query.count()}")
-            
-            print(f"\nDEFAULT LOGIN CREDENTIALS:")
-            print(f"   Username: admin")
-            print(f"   Password: Admin@123")
-            print(f"   Email: admin@parkingsystem.com")
-            
         except Exception as e:
-            print(f" Error during database initialization: {str(e)}")
             db.session.rollback()
             raise
 

@@ -103,15 +103,15 @@ class ParkingSpot(BaseModel):
     
     @staticmethod
     def count_available():
-        return ParkingSpot.query.filter_by(status=SpotStatus.AVAILABLE).count()
+        return ParkingSpot.query.filter_by(status=SpotStatus.AVAILABLE, is_deleted=False).count()
 
     @staticmethod
     def count_reserved():
-        return ParkingSpot.query.filter_by(status=SpotStatus.RESERVED).count()
+        return ParkingSpot.query.filter_by(status=SpotStatus.RESERVED, is_deleted=False).count()
 
     @staticmethod
     def count_occupied():
-        return ParkingSpot.query.filter_by(status=SpotStatus.OCCUPIED).count()
+        return ParkingSpot.query.filter_by(status=SpotStatus.OCCUPIED, is_deleted=False).count()
 
     @staticmethod
     def count_available_by_lot(lot_id):

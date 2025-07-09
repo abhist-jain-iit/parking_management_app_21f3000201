@@ -1,4 +1,3 @@
-# Geography models for location management
 from app.models.enums import GeographyStatus
 from app.extensions import db
 from app.models.base import BaseModel
@@ -6,16 +5,11 @@ from app.models.base import BaseModel
 class Continent(BaseModel):
     __tablename__ = "continents"
 
-    # Basic information
     name = db.Column(db.String(100), unique=True, nullable=False)
     code = db.Column(db.String(10), unique=True, nullable=False)
     status = db.Column(db.Enum(GeographyStatus), default=GeographyStatus.ACTIVE, nullable=False)
-
-    # Relationships
     countries = db.relationship('Country', back_populates='continent', cascade='all, delete-orphan')
-
-       
-    # Get count of active countries
+     
     def get_countries_count(self):
         return Country.query.filter_by(continent_id=self.id, status=GeographyStatus.ACTIVE).count()
     
@@ -35,23 +29,19 @@ class Continent(BaseModel):
 class Country(BaseModel):
     __tablename__ = "countries"
     
-    # Basic information
     name = db.Column(db.String(100), nullable=False)
-    code = db.Column(db.String(3), nullable=False)  # ISO codes like USA, IND
+    code = db.Column(db.String(3), nullable=False)
     continent_id = db.Column(db.Integer, db.ForeignKey('continents.id'), nullable=False)
     status = db.Column(db.Enum(GeographyStatus), default=GeographyStatus.ACTIVE, nullable=False)
     
-    # Relationships
     continent = db.relationship('Continent', back_populates='countries')
     states = db.relationship('State', back_populates='country', cascade='all, delete-orphan')
     
-    # Unique constraints
     __table_args__ = (
         db.UniqueConstraint('name', 'continent_id', name='unique_country_per_continent'),
         db.UniqueConstraint('code', name='unique_country_code')
     )
     
-    # Get count of active states
     def get_states_count(self):
         return State.query.filter_by(country_id=self.id, status=GeographyStatus.ACTIVE).count()
     
@@ -72,24 +62,19 @@ class Country(BaseModel):
 class State(BaseModel):
     __tablename__ = "states"
     
-    # Basic information
     name = db.Column(db.String(100), nullable=False)
-    code = db.Column(db.String(10), nullable=False)  # State code like 'KA' for Karnataka
+    code = db.Column(db.String(10), nullable=False)
     country_id = db.Column(db.Integer, db.ForeignKey('countries.id'), nullable=False)
     status = db.Column(db.Enum(GeographyStatus), default=GeographyStatus.ACTIVE, nullable=False)
    
-    
-    # Relationships
     country = db.relationship('Country', back_populates='states')
     cities = db.relationship('City', back_populates='state', cascade='all, delete-orphan')
     
-    # Unique constraints
     __table_args__ = (
         db.UniqueConstraint('name', 'country_id', name='unique_state_per_country'),
         db.UniqueConstraint('code', 'country_id', name='unique_state_code_per_country')
     )
     
-    # Get count of active cities
     def get_cities_count(self):
         return City.query.filter_by(state_id=self.id, status=GeographyStatus.ACTIVE).count()
     
@@ -110,20 +95,16 @@ class State(BaseModel):
 class City(BaseModel):
     __tablename__ = "cities"
     
-    # Basic information
     name = db.Column(db.String(100), nullable=False)
     state_id = db.Column(db.Integer, db.ForeignKey('states.id'), nullable=False)
-    pin_code = db.Column(db.String(20), nullable=True)  # Optional pincode
+    pin_code = db.Column(db.String(20), nullable=True)
     status = db.Column(db.Enum(GeographyStatus), default=GeographyStatus.ACTIVE, nullable=False)   
     
-    # Relationships
     state = db.relationship('State', back_populates='cities')
-    parking_lots = db.relationship('ParkingLot', back_populates='city', cascade='all, delete-orphan')  # Connection to parking system
+    parking_lots = db.relationship('ParkingLot', back_populates='city', cascade='all, delete-orphan')
     
-    # Unique constraint
     __table_args__ = (db.UniqueConstraint('name', 'state_id', name='unique_city_per_state'),)
     
-    # Get full address path
     def get_full_address(self):
         if self.state and self.state.country:
             return f"{self.name}, {self.state.name}, {self.state.country.name}"

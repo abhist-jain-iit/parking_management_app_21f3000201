@@ -2,7 +2,7 @@
 {% block content %}
 <div class="container mt-4">
   <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-secondary mb-3">Back to Admin Dashboard</a>
-  <h2>Parking Lots</h2>
+  <h2 class="text-primary">Ease-Park! Parking Lots</h2>
   <a href="{{ url_for('admin.create_parking_lot') }}" class="btn btn-primary mb-3">Add New Lot</a>
   <table class="table table-bordered table-striped">
     <thead>
@@ -50,5 +50,6 @@
       {% endfor %}
     </tbody>
   </table>
+  <a href="{{ url_for('admin.list_spots') }}" class="btn btn-outline-info mt-3">Back to Spots</a>
 </div>
 {% endblock %} 

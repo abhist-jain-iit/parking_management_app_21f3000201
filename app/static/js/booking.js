@@ -1,1 +1,0 @@
-// booking.js - Booking section logic removed as per request 

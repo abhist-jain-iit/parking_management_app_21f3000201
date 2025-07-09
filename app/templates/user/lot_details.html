@@ -81,9 +81,9 @@ document.addEventListener('DOMContentLoaded', function() {
       // Only O (Open/Available) is clickable
       const spotBtn = document.createElement('button');
       spotBtn.type = 'button';
-      spotBtn.className = `btn btn-sm ${badge} mx-1 spot-btn`;
+      spotBtn.className = 'btn btn-sm ' + badge + ' mx-1 spot-btn';
       spotBtn.textContent = symbol;
-      spotBtn.title = `Spot ${spot.spot_number} (${spot.status})`;
+      spotBtn.title = 'Spot ' + spot.spot_number + ' (' + spot.status + ')';
       spotBtn.disabled = !clickable;
       spotBtn.style.width = '32px';
       spotBtn.style.height = '32px';
@@ -101,10 +101,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function showSpotInfo() {
     if (!selectedSpot) return;
-    let html = `<b>Spot:</b> ${selectedSpot.spot_number}<br><b>Status:</b> ${selectedSpot.status}`;
+    let html = '<b>Spot:</b> ' + selectedSpot.spot_number + '<br><b>Status:</b> ' + selectedSpot.status;
     if (selectedSpot.status === 'available') {
-      html += `<br><b>Price/hr:</b> ₹${pricePerHour}`;
-      html += `<br><button id='book-now-btn' class='btn btn-success btn-sm mt-2'>Book Now</button>`;
+      html += '<br><b>Price/hr:</b> ₹' + pricePerHour;
+      html += '<br><button id="book-now-btn" class="btn btn-success btn-sm mt-2">Book Now</button>';
     }
     spotInfoDiv.innerHTML = html;
     if (selectedSpot.status === 'available') {
@@ -130,13 +130,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
   document.getElementById('confirm-yes').onclick = function() {
     if (!pendingBooking) return;
-    fetch(`/user/book-spot/${pendingBooking.spotId}`, {
+    
+    // Show loading state
+    const confirmBtn = document.getElementById('confirm-yes');
+    const originalText = confirmBtn.textContent;
+    confirmBtn.textContent = 'Booking...';
+    confirmBtn.disabled = true;
+    
+    fetch('/user/book-spot/' + pendingBooking.spotId, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({vehicle_number: pendingBooking.vehicleNumber})
     })
     .then(r => {
-      if (r.status === 401 || r.redirected) {
+      if (r.status === 401) {
         window.location.href = '/auth/login';
         return;
       }
@@ -147,28 +154,49 @@ document.addEventListener('DOMContentLoaded', function() {
       if (data.success) {
         bookModal.hide();
         confirmModal.hide();
-        spotInfoDiv.innerHTML = `<div class='alert alert-success'>${data.message}</div>`;
-        // Refresh map
-        fetch(`/user/api/lot-spots/${lotId}`)
+        
+        // Show success message with more details
+        spotInfoDiv.innerHTML = 
+          '<div class="alert alert-success">' +
+            '<h5>🎉 Booking Successful!</h5>' +
+            '<p><strong>' + data.message + '</strong></p>' +
+            '<p><strong>Spot:</strong> ' + data.spot_number + '</p>' +
+            '<p><strong>Lot:</strong> ' + data.lot_name + '</p>' +
+            '<p><strong>Vehicle:</strong> ' + data.vehicle_number + '</p>' +
+            '<p><strong>Start Time:</strong> ' + data.start_time + '</p>' +
+            '<p><strong>Price/Hour:</strong> ₹' + data.price_per_hour + '</p>' +
+            '<p class="mb-0"><strong>Redirecting to dashboard...</strong></p>' +
+          '</div>';
+        
+        // Refresh map to show updated status
+        fetch('/user/api/lot-spots/' + lotId)
           .then(r => r.json())
           .then(newSpots => {
             spots.length = 0;
             newSpots.forEach(s => spots.push(s));
             renderSpotMap();
-            // Redirect to dashboard with flash message after short delay
+            
+            // Redirect to dashboard immediately with flash message
             setTimeout(function() {
-              window.location.href = `/user/dashboard?flash=${encodeURIComponent(data.message)}`;
-            }, 1800);
+              window.location.href = data.redirect_url + '?flash=' + encodeURIComponent(data.message);
+            }, 2000);
           });
       } else {
         document.getElementById('book-error').textContent = data.message || 'Booking failed.';
         confirmModal.hide();
       }
     })
-    .catch(() => {
+    .catch((error) => {
+      console.error('Booking error:', error);
       document.getElementById('book-error').textContent = 'Network error. Please try again.';
       confirmModal.hide();
+    })
+    .finally(() => {
+      // Reset button state
+      confirmBtn.textContent = originalText;
+      confirmBtn.disabled = false;
     });
+    
     pendingBooking = null;
   };
   document.getElementById('confirm-no').onclick = function() {

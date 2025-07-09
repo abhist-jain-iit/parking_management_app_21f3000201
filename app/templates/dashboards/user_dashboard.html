@@ -2,11 +2,13 @@
 {% block content %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <div class="container mt-4">
-  <div class="d-flex justify-content-between align-items-center mb-2">
-    <h2 class="mb-4">Welcome, {{ user.first_name }}!</h2>
-    <div>
-      <a href="{{ url_for('user.edit_profile') }}" class="btn btn-outline-primary">Edit Profile</a>
-      <a href="{{ url_for('user.book_reservation') }}" class="btn btn-success ms-2">Book a Reservation</a>
+  <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap">
+    <h2 class="mb-4 text-primary">Welcome to Ease-Park!, {{ user.first_name }}!</h2>
+    <div class="d-flex flex-wrap gap-2">
+      <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary" title="Back to Home"><i class="fa fa-home"></i> Home</a>
+      <a href="{{ url_for('user.edit_profile') }}" class="btn btn-outline-primary" title="Edit your profile"><i class="fa fa-user-edit"></i> Edit Profile</a>
+      <a href="{{ url_for('user.book_reservation') }}" class="btn btn-success" title="Book a new parking reservation"><i class="fa fa-plus-circle"></i> Book a Reservation</a>
+      <button onclick="window.location.reload()" class="btn btn-outline-dark" title="Refresh dashboard"><i class="fa fa-sync-alt"></i> Refresh</button>
     </div>
   </div>
   <div class="row mb-4">
@@ -24,15 +26,16 @@
       <div class="card h-100 shadow-sm">
         <div class="card-body">
           <h6 class="mb-2"><i class="fa fa-car text-success"></i> Active Reservations</h6>
-          <div class="display-6" id="active-count">{{ active_reservations|length }}</div>
+          <div class="display-6" id="active-count" title="Number of active reservations">{{ active_reservations|length }}</div>
         </div>
       </div>
     </div>
     <div class="col-md-4 mb-3">
       <div class="card h-100 shadow-sm">
         <div class="card-body">
-          <h6 class="mb-2"><i class="fa fa-wallet text-info"></i> Current Bill</h6>
-          <div class="display-6">₹{{ active_reservations|sum(attribute='total_cost') + active_reservations|selectattr('status.value', 'equalto', 'pending_vacate')|sum(attribute='total_cost') }}</div>
+          <h6 class="mb-2"><i class="fa fa-battery-half text-success"></i> Occupancy Rate</h6>
+          <div class="display-6" title="Occupancy rate of occupied and reserved spots">{{ occupancy_rate }}%</div>
+          <small class="text-muted">(Occupied + Reserved spots)</small>
         </div>
       </div>
     </div>
@@ -45,9 +48,12 @@
         <div class="card-body">
           <h6 class="mb-2"><i class="fa fa-chart-bar text-warning"></i> Parking Summary</h6>
           <div id="summary-section">
-            <div>Total Bookings: <span id="summary-bookings">-</span></div>
-            <div>Total Time Parked (hrs): <span id="summary-time">-</span></div>
-            <div>Total Amount Spent: ₹<span id="summary-amount">-</span></div>
+            <div><strong>Total Bookings:</strong> <span id="summary-bookings">{{ total_bookings }}</span></div>
+            <div><strong>Total Time Parked:</strong> <span id="summary-time">{{ "%.1f"|format(total_time) }} hrs</span></div>
+            <div><strong>Total Amount Spent:</strong> ₹<span id="summary-amount">{{ "%.2f"|format(total_spent) }}</span> <small class="text-muted">(completed reservations only)</small></div>
+            <div><strong>Total Amount Including Cancelled:</strong> ₹<span id="summary-amount-cancelled">{{ "%.2f"|format(total_spent_including_cancelled) }}</span> <small class="text-muted">(includes cancelled reservations)</small></div>
+            <div><strong>Active Reservations:</strong> <span id="summary-active">{{ active_reservations|length }}</span></div>
+            <div><strong>Current Estimated Bill:</strong> ₹<span id="summary-current">{{ "%.2f"|format(active_spending) }}</span></div>
           </div>
         </div>
       </div>
@@ -105,20 +111,15 @@
                 <td>{{ r.vehicle_number }}</td>
                 <td>{{ r.start_time.strftime('%Y-%m-%d %H:%M') if r.start_time else '' }}</td>
                 <td>
-                  {% if r.status.value == 'pending_vacate' %}
-                    <span class="badge bg-warning text-dark" title="Waiting for admin approval">Pending Vacate</span>
-                  {% else %}
-                    <span class="badge bg-success" title="Active reservation">Active</span>
-                  {% endif %}
+                  <span class="badge bg-success" title="Active reservation">Active</span>
                 </td>
-                <td>{{ r.parking_spot.parking_lot.price_per_hour if r.parking_spot and r.parking_spot.parking_lot else '' }}</td>
-                <td>{{ r.total_cost }}</td>
+                <td>₹{{ "%.2f"|format(r.parking_spot.parking_lot.price_per_hour) if r.parking_spot and r.parking_spot.parking_lot else '0.00' }}</td>
+                <td>₹{{ "%.2f"|format(r.estimated_cost) }}</td>
                 <td>
-                  {% if r.status.value == 'active' %}
-                    <button class="btn btn-sm btn-warning vacate-btn" data-id="{{ r.id }}" title="Request to vacate this spot">Vacate</button>
-                    <button class="btn btn-sm btn-danger cancel-btn" data-id="{{ r.id }}" title="Cancel this reservation">Cancel</button>
-                  {% elif r.status.value == 'pending_vacate' %}
-                    <span class="text-muted">Awaiting admin approval</span>
+                  <button class="btn btn-sm btn-warning vacate-btn" data-id="{{ r.id }}" title="Request to vacate this spot">Vacate</button>
+                  <button class="btn btn-sm btn-danger cancel-btn" data-id="{{ r.id }}" title="Cancel this reservation">Cancel</button>
+                  {% if r.parking_spot and r.parking_spot.status.value == 'reserved' %}
+                  <button class="btn btn-sm btn-info park-btn" data-id="{{ r.id }}" title="Mark as Parked">Park Now</button>
                   {% endif %}
                 </td>
               </tr>
@@ -143,6 +144,8 @@
               <tr>
                 <th>Spot</th>
                 <th>Lot</th>
+                <th>Vehicle</th>
+                <th>Address</th>
                 <th>Start Time</th>
                 <th>End Time</th>
                 <th>Status</th>
@@ -151,7 +154,7 @@
             </thead>
             <tbody id="completed-reservations-body-js">
               {% if completed_reservations|length == 0 %}
-              <tr><td colspan="9" class="text-center text-muted">No completed reservations.</td></tr>
+              <tr><td colspan="8" class="text-center text-muted">No completed reservations.</td></tr>
               {% endif %}
               {% for r in completed_reservations %}
               <tr data-id="{{ r.id }}">
@@ -162,8 +165,7 @@
                 <td>{{ r.start_time.strftime('%Y-%m-%d %H:%M') if r.start_time else '' }}</td>
                 <td>{{ r.end_time.strftime('%Y-%m-%d %H:%M') if r.end_time else '' }}</td>
                 <td><span class="badge bg-info" title="Reservation completed">Completed</span></td>
-                <td>{{ r.total_cost }}</td>
-                <td></td>
+                <td>₹{{ "%.2f"|format(r.total_cost) if r.total_cost else '0.00' }}</td>
               </tr>
               {% endfor %}
             </tbody>
@@ -179,7 +181,10 @@
     <!-- Cancelled Reservations -->
     <div class="tab-pane fade" id="cancelled" role="tabpanel">
       <div class="card mb-3">
-        <div class="card-header bg-danger text-white"><i class="fa fa-times-circle"></i> Cancelled Reservations</div>
+        <div class="card-header bg-danger text-white">
+          <i class="fa fa-times-circle"></i> Cancelled Reservations
+          <small class="float-end">Note: You are charged for the time used</small>
+        </div>
         <div class="card-body p-0">
           <table class="table table-bordered table-striped mb-0">
             <thead class="table-light">
@@ -196,7 +201,7 @@
             </thead>
             <tbody id="cancelled-reservations-body-js">
               {% if cancelled_reservations|length == 0 %}
-              <tr><td colspan="9" class="text-center text-muted">No cancelled reservations.</td></tr>
+              <tr><td colspan="8" class="text-center text-muted">No cancelled reservations.</td></tr>
               {% endif %}
               {% for r in cancelled_reservations %}
               <tr data-id="{{ r.id }}">
@@ -207,8 +212,7 @@
                 <td>{{ r.start_time.strftime('%Y-%m-%d %H:%M') if r.start_time else '' }}</td>
                 <td>{{ r.end_time.strftime('%Y-%m-%d %H:%M') if r.end_time else '' }}</td>
                 <td><span class="badge bg-danger" title="Reservation cancelled">Cancelled</span></td>
-                <td>{{ r.total_cost }}</td>
-                <td></td>
+                <td>₹{{ "%.2f"|format(r.total_cost) if r.total_cost else '0.00' }}</td>
               </tr>
               {% endfor %}
             </tbody>
@@ -225,44 +229,108 @@
 </div>
 <script>
 $(function() {
+  console.log('User Dashboard: Page loaded, initializing buttons');
+  
   $('.vacate-btn').click(function() {
+    console.log('User Dashboard: Vacate button clicked');
     if (!confirm('Are you sure you want to vacate this spot?')) return;
     var row = $(this).closest('tr');
     var id = $(this).data('id');
     var btn = $(this);
     btn.prop('disabled', true);
-    $.post('/user/vacate-reservation/' + id, function(resp) {
-      if (resp.success) {
-        row.find('td:eq(6)').html('<span class="badge bg-warning text-dark" title="Waiting for admin approval">Pending Vacate</span>');
-        row.find('td:eq(8)').html('<span class="text-muted">Awaiting admin approval</span>');
-        showFlash('Vacate request submitted. Awaiting admin approval.', 'info');
-      } else {
-        alert(resp.message);
+    
+    console.log('User Dashboard: Making vacate request for reservation', id);
+    $.ajax({
+      url: '/user/vacate-reservation/' + id,
+      method: 'POST',
+      dataType: 'json',
+      success: function(resp) {
+        console.log('User Dashboard: Vacate response received', resp);
+        if (resp.success) {
+          // Move the row to completed reservations
+          var completedTable = $('#completed-reservations-body-js');
+          row.find('td:eq(6)').html('<span class="badge bg-info" title="Reservation completed">Completed</span>');
+          row.find('td:eq(8)').html('');
+          completedTable.append(row);
+          showFlash(resp.message, 'success');
+          
+          // Refresh the page after a short delay to update statistics
+          setTimeout(function() {
+            window.location.reload();
+          }, 2000);
+        } else {
+          alert(resp.message || 'Failed to vacate reservation');
+          btn.prop('disabled', false);
+        }
+      },
+      error: function(xhr, status, error) {
+        console.error('User Dashboard: Vacate request failed', error);
+        alert('Failed to vacate reservation. Please try again.');
         btn.prop('disabled', false);
       }
     });
   });
+  
   $('.cancel-btn').click(function() {
+    console.log('User Dashboard: Cancel button clicked');
     if (!confirm('Are you sure you want to cancel this reservation?')) return;
     var row = $(this).closest('tr');
     var id = $(this).data('id');
     var btn = $(this);
     btn.prop('disabled', true);
-    $.post('/user/cancel-reservation/' + id, function(resp) {
-      if (resp.success) {
-        var cancelledTable = $('#cancelled-reservations-body-js');
-        row.find('td:eq(6)').html('<span class="badge bg-danger" title="Reservation cancelled">Cancelled</span>');
-        row.find('td:eq(8)').html('');
-        cancelledTable.append(row);
-        showFlash('Reservation cancelled.', 'warning');
-      } else {
-        alert(resp.message);
+    
+    console.log('User Dashboard: Making cancel request for reservation', id);
+    $.ajax({
+      url: '/user/cancel-reservation/' + id,
+      method: 'POST',
+      dataType: 'json',
+      success: function(resp) {
+        console.log('User Dashboard: Cancel response received', resp);
+        if (resp.success) {
+          var cancelledTable = $('#cancelled-reservations-body-js');
+          row.find('td:eq(6)').html('<span class="badge bg-danger" title="Reservation cancelled">Cancelled</span>');
+          row.find('td:eq(8)').html('');
+          cancelledTable.append(row);
+          showFlash(resp.message || 'Reservation cancelled. You will be charged for the time used.', 'warning');
+          
+          // Refresh the page after a short delay to update statistics
+          setTimeout(function() {
+            window.location.reload();
+          }, 2000);
+        } else {
+          alert(resp.message || 'Failed to cancel reservation');
+          btn.prop('disabled', false);
+        }
+      },
+      error: function(xhr, status, error) {
+        console.error('User Dashboard: Cancel request failed', error);
+        alert('Failed to cancel reservation. Please try again.');
         btn.prop('disabled', false);
       }
     });
   });
+
+  $('.park-btn').click(function() {
+    var reservationId = $(this).data('id');
+    if (!confirm('Mark this spot as occupied (parked)?')) return;
+    $.ajax({
+      url: '/user/update_reservation_status',
+      method: 'POST',
+      contentType: 'application/json',
+      data: JSON.stringify({ reservation_id: reservationId, status: 'occupied' }),
+      success: function(response) {
+        alert(response.message || 'Spot marked as occupied!');
+        location.reload();
+      },
+      error: function(xhr) {
+        alert(xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : 'Failed to mark as occupied.');
+      }
+    });
+  });
 });
+
 function showFlash(msg, type) {
+  console.log('User Dashboard: Showing flash message', type, msg);
   var flash = $('<div class="alert alert-' + type + ' alert-dismissible fade show mt-3" role="alert">' +
     msg +
     '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>');

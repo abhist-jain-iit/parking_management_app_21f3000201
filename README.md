@@ -1,88 +1,161 @@
-# 🚗 Parking Management App - V1
+# Ease-Park! - Smart Parking Solutions
 
-**Project Name:** Parking_Management_App_21f3000201  
-**Course:** MAD-1 (Mobile Application Development - 1)  
-**Level:** Diploma Level Project  
-**Institution:** IITM - BS Degree Program
+A comprehensive parking management application built with Flask, featuring user authentication, parking spot booking, and administrative management. Ease-Park! provides hassle-free parking solutions for both users and administrators.
 
----
+## Features
 
-## 📘 Description
+### User Features
+- **Dashboard**: View active, completed, and cancelled reservations
+- **Booking**: Search and book parking spots by location
+- **Profile Management**: Edit personal information
+- **Reservation Management**: Vacate or cancel active reservations
+- **Cost Tracking**: View total spending and current estimated bills
 
-This Parking Management App (V1) is developed as part of the MAD-1 course under the IITM BS Degree Program. It provides functionality for managing parking lots, users, geography, and roles with both user and admin portals. The project includes authentication, CRUD operations, and analytics features.
+### Admin Features
+- **Dashboard**: Overview of system statistics and revenue
+- **User Management**: View, edit, and manage user accounts
+- **Parking Management**: Manage parking lots and spots
+- **Geography Management**: Manage continents, countries, states, and cities
+- **Analytics**: View detailed reports and charts
 
----
+## Technology Stack
 
-## 🌐 Registered Routes
+- **Backend**: Flask, SQLAlchemy, Flask-Login, Flask-JWT-Extended
+- **Database**: SQLite
+- **Frontend**: Bootstrap 5, jQuery, Chart.js
+- **Authentication**: Session-based with JWT support
 
-### 🔹 Main Route
-- `/` — Main Landing Page
+## Project Structure
 
----
+```
+parking_management_app/
+├── app/
+│   ├── __init__.py              # Flask app factory
+│   ├── extensions.py            # Database and login manager
+│   ├── decorators.py           # Permission decorators
+│   ├── models/                 # Database models
+│   │   ├── __init__.py
+│   │   ├── base.py
+│   │   ├── database_setup.py   # Database initialization
+│   │   ├── enums.py           # Enum definitions
+│   │   ├── geography.py       # Geography models
+│   │   ├── parking.py         # Parking models
+│   │   ├── permissions.py     # Permission models
+│   │   └── user.py           # User models
+│   ├── routes/                # Route blueprints
+│   │   ├── __init__.py
+│   │   ├── admin.py          # Admin routes
+│   │   ├── auth.py           # Authentication routes
+│   │   ├── main.py           # Main routes
+│   │   └── user.py           # User routes
+│   ├── templates/            # HTML templates
+│   │   ├── admin/           # Admin templates
+│   │   ├── auth/            # Authentication templates
+│   │   ├── dashboards/      # Dashboard templates
+│   │   └── user/            # User templates
+│   ├── static/              # Static files
+│   │   └── js/             # JavaScript files
+│   └── Data/               # Sample data
+│       └── data.py         # Initial data
+├── config.py               # Configuration settings
+├── run.py                 # Application entry point
+└── README.md             # This file
+```
 
-### 🔐 Authentication Routes
-- `/auth/login` — Login Page  
-- `/auth/signup` — Signup Page  
-- `/auth/logout` — Logout User  
-- `/auth/admin/login` — Admin Login  
-- `/auth/forgot-password` — Forgot Password  
-- `/auth/reset-password/<token>` — Reset Password via Token  
-- `/auth/change-password` — Change Password (User Logged In)
+## Installation
 
----
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd parking_management_app
+   ```
 
-### 🛠️ Admin Panel Routes
+2. **Install dependencies**
+   ```bash
+   pip install flask flask-sqlalchemy flask-login flask-jwt-extended python-dotenv
+   ```
 
-#### 📊 Dashboard
-- `/admin/dashboard` — Admin Dashboard
+3. **Run the application**
+   ```bash
+   python run.py
+   ```
 
-#### 👤 User Management
-- `/admin/users` — View All Users  
-- `/admin/users/<int:user_id>` — View Specific User  
-- `/admin/users/<int:user_id>/edit` — Edit User Details  
-- `/admin/users/<int:user_id>/delete` — Delete User  
-- `/admin/users/<int:user_id>/status` — Update User Status
+4. **Access the application**
+   - URL: http://localhost:5000
+   - Admin login: admin / Admin@123
 
-#### 🅿️ Lot Management
-- `/admin/lots` — View All Lots  
-- `/admin/lots/create` — Create a New Lot  
-- `/admin/lots/<int:lot_id>` — View Lot Details  
-- `/admin/lots/<int:lot_id>/edit` — Edit Lot  
-- `/admin/lots/<int:lot_id>/delete` — Delete Lot  
-- `/admin/parking/lots/search` — Search Parking Lots
+## Default Credentials
 
-#### 🧩 Spot Management
-- `/admin/spots` — View All Spots  
-- `/admin/spots/<int:spot_id>` — View Specific Spot  
-- `/admin/spots/<int:spot_id>/edit` — Edit Spot  
-- `/admin/spots/<int:spot_id>/delete` — Delete Spot  
-- `/admin/parking/spots/search` — Search Spots  
-- `/admin/parking/spots/<int:spot_id>/update-status` — Update Spot Status
+- **Admin**: username: `admin`, password: `Admin@123`
+- **Sample Users**: Created automatically with the application
 
-#### 🌍 Geography Management
-- `/admin/geography` — Manage Geographic Data  
-- `/admin/geography/create` — Create New Geographic Entity  
-- `/admin/geography/<entity>/<int:entity_id>/edit` — Edit Geographic Entity  
-- `/admin/geography/<entity>/<int:entity_id>/delete` — Delete Geographic Entity  
-- `/user-geo/create` — User-Level Geography Creation
+## Key Features
 
-#### 📈 Admin Analytics
-- `/admin/charts` — View Analytical Charts
+### Revenue Management
+- **User Dashboard**: Shows total spent (completed reservations only) and total including cancelled
+- **Admin Dashboard**: Shows total revenue including both completed and cancelled reservations
+- **Billing Policy**: Users are charged for time used, even when cancelling (minimum 1 hour)
 
----
+### Reservation System
+- **Booking**: Users can book available spots with vehicle number
+- **Vacate**: Complete reservations and calculate final cost
+- **Cancel**: Cancel reservations with charge for time used
+- **Status Tracking**: Active, Completed, and Cancelled statuses
 
-## 📦 Tech Stack
-- **Backend:** Python (Flask)
-- **Frontend:** HTML, CSS, Bootstrap, JS
-- **Database:** SQLite
+### Permission System
+- **Role-based**: Admin and User roles with specific permissions
+- **Granular Control**: Individual permissions for different actions
+- **Session Management**: Secure authentication with session and JWT support
 
----
+## API Endpoints
 
-## 👨 Author
-**Abhist Jain**  
-ID: `21f3000201`
+### User Routes
+- `GET /user/dashboard` - User dashboard
+- `POST /user/book-spot/<spot_id>` - Book a parking spot
+- `POST /user/vacate-reservation/<reservation_id>` - Vacate a spot
+- `POST /user/cancel-reservation/<reservation_id>` - Cancel a reservation
+- `GET /user/profile` - Edit profile
+- `GET /user/book-reservation` - Booking page
 
----
+### Admin Routes
+- `GET /admin/dashboard` - Admin dashboard
+- `GET /admin/users` - Manage users
+- `GET /admin/lots` - Manage parking lots
+- `GET /admin/spots` - Manage parking spots
+- `GET /admin/geography` - Manage geography data
 
-## Notes
-This project is a submission under the IITM BS Degree curriculum and is intended for academic demonstration purposes.
+### Authentication Routes
+- `GET /auth/login` - Login page
+- `POST /auth/login` - Login action
+- `GET /auth/logout` - Logout
+- `GET /auth/signup` - Registration page
+
+## Database Schema
+
+The application uses SQLAlchemy ORM with the following main models:
+
+- **User**: User accounts with roles and permissions
+- **ParkingLot**: Parking lots with location and pricing
+- **ParkingSpot**: Individual parking spots within lots
+- **Reservation**: User reservations with timing and cost
+- **Geography**: Hierarchical location data (Continent → Country → State → City)
+
+## Security Features
+
+- **Password Hashing**: Secure password storage using werkzeug
+- **Session Management**: Secure session handling
+- **Permission System**: Role-based access control
+- **Input Validation**: Form validation and sanitization
+- **SQL Injection Protection**: Using SQLAlchemy ORM
+
+## Production Considerations
+
+- **Environment Variables**: Use `.env` file for sensitive configuration
+- **Database**: Consider using PostgreSQL for production
+- **Logging**: Implement proper logging for production
+- **Security**: Enable HTTPS and secure headers
+- **Performance**: Add caching and database optimization
+
+## License
+
+This project is licensed under the MIT License.

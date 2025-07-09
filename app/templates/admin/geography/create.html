@@ -16,25 +16,27 @@
     <div id="continent-fields" style="display:none;">
       <div class="form-group mb-3">
         <label for="name">Continent Name</label>
-        <input type="text" class="form-control" name="name" id="continent-name">
+        <input type="text" class="form-control" name="name" id="continent-name" required>
       </div>
       <div class="form-group mb-3">
         <label for="code">Continent Code</label>
-        <input type="text" class="form-control" name="code" id="continent-code">
+        <input type="text" class="form-control" name="code" id="continent-code" required>
+        <small class="form-text text-muted">Code must be unique (e.g., AS for Asia, EU for Europe, etc.).</small>
       </div>
     </div>
     <div id="country-fields" style="display:none;">
       <div class="form-group mb-3">
         <label for="name">Country Name</label>
-        <input type="text" class="form-control" name="name" id="country-name">
+        <input type="text" class="form-control" name="name" id="country-name" required>
       </div>
       <div class="form-group mb-3">
         <label for="code">Country Code</label>
-        <input type="text" class="form-control" name="code" id="country-code">
+        <input type="text" class="form-control" name="code" id="country-code" required>
+        <small class="form-text text-muted">Code must be unique (e.g., IN for India, CN for China, etc.).</small>
       </div>
       <div class="form-group mb-3">
         <label for="parent_id">Continent</label>
-        <select class="form-control" name="parent_id" id="country-continent">
+        <select class="form-control" name="parent_id" id="country-continent" required>
           {% for continent in continents %}
           <option value="{{ continent.id }}">{{ continent.name }}</option>
           {% endfor %}
@@ -44,15 +46,16 @@
     <div id="state-fields" style="display:none;">
       <div class="form-group mb-3">
         <label for="name">State Name</label>
-        <input type="text" class="form-control" name="name" id="state-name">
+        <input type="text" class="form-control" name="name" id="state-name" required>
       </div>
       <div class="form-group mb-3">
         <label for="code">State Code</label>
-        <input type="text" class="form-control" name="code" id="state-code">
+        <input type="text" class="form-control" name="code" id="state-code" required>
+        <small class="form-text text-muted">Code must be unique within the selected country (e.g., KA for Karnataka).</small>
       </div>
       <div class="form-group mb-3">
         <label for="parent_id">Country</label>
-        <select class="form-control" name="parent_id" id="state-country">
+        <select class="form-control" name="parent_id" id="state-country" required>
           {% for country in countries %}
           <option value="{{ country.id }}">{{ country.name }}</option>
           {% endfor %}
@@ -62,7 +65,7 @@
     <div id="city-fields" style="display:none;">
       <div class="form-group mb-3">
         <label for="name">City Name</label>
-        <input type="text" class="form-control" name="name" id="city-name">
+        <input type="text" class="form-control" name="name" id="city-name" required>
       </div>
       <div class="form-group mb-3">
         <label for="pin_code">Pin Code</label>
@@ -70,7 +73,7 @@
       </div>
       <div class="form-group mb-3">
         <label for="parent_id">State</label>
-        <select class="form-control" name="parent_id" id="city-state">
+        <select class="form-control" name="parent_id" id="city-state" required>
           {% for state in states %}
           <option value="{{ state.id }}">{{ state.name }}</option>
           {% endfor %}
@@ -84,10 +87,27 @@
 <script>
 function showFields() {
   var entity = document.getElementById('entity').value;
+  // Hide all fields
   document.getElementById('continent-fields').style.display = (entity === 'continent') ? 'block' : 'none';
   document.getElementById('country-fields').style.display = (entity === 'country') ? 'block' : 'none';
   document.getElementById('state-fields').style.display = (entity === 'state') ? 'block' : 'none';
   document.getElementById('city-fields').style.display = (entity === 'city') ? 'block' : 'none';
+
+  // Disable all inputs in hidden sections
+  var allSections = ['continent', 'country', 'state', 'city'];
+  allSections.forEach(function(type) {
+    var section = document.getElementById(type + '-fields');
+    var inputs = section.querySelectorAll('input, select');
+    inputs.forEach(function(input) {
+      if (entity === type) {
+        input.disabled = false;
+      } else {
+        input.disabled = true;
+      }
+    });
+  });
 }
+// Run on page load in case of browser autofill
+window.onload = showFields;
 </script>
 {% endblock %} 

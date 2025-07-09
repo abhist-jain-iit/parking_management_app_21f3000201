@@ -2,6 +2,9 @@ from app import create_app
 # from app.extensions import db
 # from app.models.user import User, Role
 
+# Ease-Park! - Smart Parking Solutions
+# Main application entry point
+
 # Route for testing database....
 
 # @app.route('/test-db')

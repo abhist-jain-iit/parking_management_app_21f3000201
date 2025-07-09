@@ -1,8 +1,7 @@
 from flask import Blueprint, render_template, redirect, request, url_for, flash, session, jsonify
 from app.extensions import db
-from datetime import datetime, timedelta
+from datetime import datetime
 from app.models import *
-import json
 from app.decorators import require_permission
 from sqlalchemy import func, or_
 from decimal import Decimal
@@ -13,75 +12,66 @@ from sqlalchemy.exc import IntegrityError
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
-
 def refresh_db_session(func):
+    """Refresh database session to clear cache - helps prevent stale data"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        db.session.expire_all()  # clears SQLAlchemy cache
+        db.session.expire_all()
         return func(*args, **kwargs)
     return wrapper
-
 
 @admin_bp.route('/dashboard')
 @require_permission(PermissionType.FULL_SYSTEM_ACCESS.value)
 @refresh_db_session
 def admin_dashboard():
-
-    # Main admin dashboard with overview statistics.
+    """Admin dashboard - shows system overview, revenue, and statistics"""
     try:
-        # Use this dummy reservation to test that everything is working fine.
-        # dummy_reservation = Reservation(
-        #     vehicle_number="TEST123",
-        #     status=ReservationStatus.COMPLETED,
-        #     user_id = 2,  # Or any valid non-CANCELLED status
-        #     total_cost=Decimal("10.00"),
-        #     start_time=datetime.utcnow(),
-        #     end_time=datetime.utcnow() + timedelta(hours=2),
-        #     parking_spot_id = 3,
-        #     created_at=datetime.utcnow()
-        # )
-
-        # db.session.add(dummy_reservation)
-        # db.session.commit()
-        # Date reference
+        print("Admin Dashboard: Loading admin dashboard")
         today = datetime.now().date()
         
-        # Reservation revenue
+        # Calculate total money earned (including cancelled reservations since users pay for time used)
         today_revenue = db.session.query(func.sum(Reservation.total_cost)).filter(
             func.date(Reservation.created_at) == today,
-            Reservation.status != ReservationStatus.CANCELLED
+            Reservation.status.in_([ReservationStatus.COMPLETED, ReservationStatus.CANCELLED])
         ).scalar() or 0
 
         total_revenue = db.session.query(func.sum(Reservation.total_cost)).filter(
-            Reservation.status != ReservationStatus.CANCELLED
+            Reservation.status.in_([ReservationStatus.COMPLETED, ReservationStatus.CANCELLED])
         ).scalar() or 0
 
         today_reservations = Reservation.query.filter(
             func.date(Reservation.created_at) == today
         ).count()
 
-        # Recent activity
+        print(f"Admin Dashboard: Today's revenue ₹{float(today_revenue):.2f}, total revenue ₹{float(total_revenue):.2f}")
+
+        # Get recent parking activity
         recent_reservations = Reservation.query.order_by(
             Reservation.created_at.desc()
         ).limit(10).all()
 
-        # Geographic stats
+        # Count all the geography data (continents, countries, states, cities)
         total_continents = Continent.query.count()
         total_countries = Country.query.count()
         total_states = State.query.count()
         total_cities = City.query.count()
 
-        # User & parking stats
+        # Count users and parking data
         total_users = User.query.filter(User.username != 'admin').count()
         total_parking_lots = ParkingLot.query.count()
-        total_parking_spots = ParkingSpot.query.count()
+        total_parking_spots = ParkingSpot.query.filter_by(is_deleted=False).count()
         total_reservations = Reservation.query.count()
 
+        # Count parking spot statuses (available, reserved, occupied)
         available_spots = ParkingSpot.count_available()
         reserved_spots = ParkingSpot.count_reserved()
         occupied_spots = ParkingSpot.count_occupied()
 
-        # Dashboard statistics dictionary
+        # Calculate how full the parking system is (occupied + reserved)
+        occupancy_count = occupied_spots + reserved_spots
+        occupancy_rate = round((occupancy_count / total_parking_spots * 100), 2) if total_parking_spots > 0 else 0
+
+        # Dashboard statistics for display
         stats = {
             'total_continents': total_continents,
             'total_countries': total_countries,
@@ -97,11 +87,12 @@ def admin_dashboard():
             'today_reservations': today_reservations,
             'today_revenue': float(today_revenue),
             'total_revenue': float(total_revenue),
-            'occupancy_rate': round((occupied_spots / total_parking_spots * 100), 2)
-                              if total_parking_spots > 0 else 0
+            'occupancy_rate': occupancy_rate
         }
 
-        # Provide latest 5 for dashboard quick management
+        print(f"Admin Dashboard: System has {total_users} users, {total_parking_lots} lots, {total_parking_spots} spots, {occupancy_rate}% occupancy")
+
+        # Get latest items for quick management
         users = User.query.filter(User.username != 'admin').order_by(User.created_at.desc()).limit(5).all()
         lots = ParkingLot.query.order_by(ParkingLot.created_at.desc()).limit(5).all()
         spots = ParkingSpot.query.order_by(ParkingSpot.created_at.desc()).limit(5).all()
@@ -109,8 +100,6 @@ def admin_dashboard():
         countries = Country.query.order_by(Country.created_at.desc()).limit(5).all()
         states = State.query.order_by(State.created_at.desc()).limit(5).all()
         cities = City.query.order_by(City.created_at.desc()).limit(5).all()
-
-        pending_vacate_reservations = Reservation.query.filter_by(status='pending_vacate').all()
 
         return render_template('dashboards/admin_dashboard.html',
                                stats=stats,
@@ -121,46 +110,40 @@ def admin_dashboard():
                                continents=continents,
                                countries=countries,
                                states=states,
-                               cities=cities,
-                               pending_vacate_reservations=pending_vacate_reservations)
+                               cities=cities)
 
     except Exception as e:
+        print(f"Admin Dashboard Error: {str(e)}")
         flash(f"Error loading dashboard: {str(e)}", "error")
         return render_template('dashboards/admin_dashboard.html',
                                stats={},
                                recent_reservations=[])
 
-
-# Result i got on testing which is correct hence test passed.
-# {
-#     "recent_reservations": [],
-#     "stats": {
-#         "available_spots": 350,
-#         "occupancy_rate": 0,
-#         "occupied_spots": 0,
-#         "reserved_spots": 0,
-#         "today_reservations": 0,
-#         "today_revenue": 0,
-#         "total_cities": 2,
-#         "total_continents": 1,
-#         "total_countries": 1,
-#         "total_parking_lots": 3,
-#         "total_parking_spots": 350,
-#         "total_reservations": 0,
-#         "total_revenue": 0,
-#         "total_states": 3,
-#         "total_users": 1
-#     }
-# }
+@admin_bp.route('/recent-reservations')
+@require_permission(PermissionType.FULL_SYSTEM_ACCESS.value)
+@refresh_db_session
+def recent_reservations():
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    pagination = Reservation.query.order_by(Reservation.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    reservations = pagination.items
+    return render_template('admin/recent_reservations.html', reservations=reservations, pagination=pagination)
 
 @admin_bp.route('/users')
 @require_permission(PermissionType.MANAGE_USERS.value)
 @refresh_db_session
 def manage_users():
+    """Manage users - view, search, and manage user accounts"""
     page = request.args.get('page', 1, type=int)
     search = request.args.get('search', '', type=str)
     show_all = request.args.get('show_all', 0, type=int)
+    
+    print(f"Manage Users: Page {page}, search='{search}', show_all={show_all}")
+    
+    # Start with all users except admin
     query = User.query.filter(User.username != 'admin')
+    
+    # Search by username, email, first name, or last name
     if search:
         search_lower = search.lower()
         query = query.filter(
@@ -171,26 +154,35 @@ def manage_users():
                 func.lower(User.last_name).contains(search_lower)
             )
         )
+    
+    # Show all users or paginate
     if show_all:
         users = query.order_by(User.created_at.desc()).paginate(page=1, per_page=10000, error_out=False)
     else:
         users = query.order_by(User.created_at.desc()).paginate(page=page, per_page=20, error_out=False)
+    
+    print(f"Manage Users: Found {users.total} users")
     return render_template('admin/users/manage.html', users=users)
 
 @admin_bp.route('/users/<int:user_id>')
 @require_permission(PermissionType.MANAGE_USERS.value)
 @refresh_db_session
 def view_user_details(user_id):
+    """View detailed information about a specific user and their parking history"""
+    print(f"View User Details: Loading details for user {user_id}")
     user = User.query.get_or_404(user_id)
     reservations = Reservation.query.filter_by(user_id=user_id).order_by(Reservation.created_at.desc()).all()
+    print(f"View User Details: Found {len(reservations)} reservations for user {user_id}")
     return render_template('admin/users/details.html', user=user, reservations=reservations)
 
 @admin_bp.route('/users/<int:user_id>/edit', methods=['GET', 'POST'])
 @require_permission(PermissionType.MANAGE_USERS.value)
 @refresh_db_session
 def edit_user(user_id):
+    """Edit user information (username, email, name)"""
     user = User.query.get_or_404(user_id)
     if request.method == 'POST':
+        print(f"Edit User: Updating user {user_id}")
         data = request.form
         user.username = data.get('username', user.username)
         user.email = data.get('email', user.email)
@@ -300,11 +292,16 @@ def edit_parking_lot(lot_id):
 @refresh_db_session
 def delete_parking_lot(lot_id):
     lot = ParkingLot.query.get_or_404(lot_id)
-    occupied = ParkingSpot.query.filter_by(parking_lot_id=lot.id, status='occupied').count()
-    reserved = ParkingSpot.query.filter_by(parking_lot_id=lot.id, status='reserved').count()
-    if occupied > 0 or reserved > 0:
-        flash('Cannot delete lot with occupied or reserved spots!', 'danger')
+    # Only allow deletion if all spots are available (not occupied or reserved) and not deleted
+    non_empty_spots = ParkingSpot.query.filter(
+        ParkingSpot.parking_lot_id == lot.id,
+        ParkingSpot.is_deleted == False,
+        ParkingSpot.status != 'available'
+    ).count()
+    if non_empty_spots > 0:
+        flash('Cannot delete lot with non-empty (occupied or reserved) spots!', 'danger')
         return redirect(url_for('admin.view_parking_lot_details', lot_id=lot.id))
+    # Delete all spots in this lot (soft delete if needed)
     ParkingSpot.query.filter_by(parking_lot_id=lot.id).delete()
     db.session.delete(lot)
     db.session.commit()
@@ -486,11 +483,11 @@ def search_parking_spots():
                 status=ReservationStatus.ACTIVE
             ).first()
         
-        # Get spot revenue
+        # Get spot revenue - include cancelled reservations since users pay for time used
         spot_revenue = db.session.query(func.sum(Reservation.total_cost)).filter_by(
             parking_spot_id=spot.id
         ).filter(
-            Reservation.status != ReservationStatus.CANCELLED
+            Reservation.status.in_([ReservationStatus.COMPLETED, ReservationStatus.CANCELLED])
         ).scalar() or 0
         
         results.append({
@@ -542,6 +539,23 @@ def search_parking_spots():
                           status=status,
                           lot_id=lot_id,
                           availability=availability)
+
+@admin_bp.route('/spots/search')
+@require_permission(PermissionType.VIEW_PARKING_DETAILS.value)
+@refresh_db_session
+def search_spots():
+    search = request.args.get('search', '', type=str)
+    status = request.args.get('status', '', type=str)
+    lot_id = request.args.get('lot_id', 0, type=int)
+    query = ParkingSpot.query
+    if search:
+        query = query.filter(ParkingSpot.spot_number.ilike(f"%{search}%"))
+    if status:
+        query = query.filter_by(status=status)
+    if lot_id > 0:
+        query = query.filter_by(parking_lot_id=lot_id)
+    spots = query.all()
+    return render_template('admin/parking/spots.html', spots=spots, search=search, status=status, lot_id=lot_id)
 
 @admin_bp.route('/parking/spots/<int:spot_id>/update-status', methods=['POST'])
 @require_permission(PermissionType.MANAGE_PARKING.value)
@@ -622,22 +636,84 @@ def create_geography():
         entity = data.get('entity')
         name = data.get('name')
         code = data.get('code')
-        parent_id = int(data.get('parent_id')) if data.get('parent_id') else None
-        if entity == 'continent':
-            obj = Continent(name=name, code=code, status=GeographyStatus.ACTIVE)
-        elif entity == 'country':
-            obj = Country(name=name, code=code, continent_id=parent_id, status=GeographyStatus.ACTIVE)
-        elif entity == 'state':
-            obj = State(name=name, code=code, country_id=parent_id, status=GeographyStatus.ACTIVE)
-        elif entity == 'city':
-            obj = City(name=name, state_id=parent_id, pin_code=data.get('pin_code'), status=GeographyStatus.ACTIVE)
-        else:
-            flash('Invalid entity!', 'danger')
+        parent_id = data.get('parent_id')
+        pin_code = data.get('pin_code')
+
+        # Debug: Print form data
+        print(f"[DEBUG] Geography creation POST data: entity={entity}, name={name}, code={code}, parent_id={parent_id}, pin_code={pin_code}")
+
+        # Validation
+        if not entity:
+            flash('Entity type is required!', 'danger')
+            return redirect(url_for('admin.create_geography'))
+        if not name:
+            flash('Name is required!', 'danger')
+            return redirect(url_for('admin.create_geography'))
+        if entity in ['continent', 'country', 'state'] and not code:
+            flash('Code is required!', 'danger')
+            return redirect(url_for('admin.create_geography'))
+        if entity in ['country', 'state', 'city']:
+            if not parent_id or parent_id == 'None':
+                flash('Parent selection is required!', 'danger')
+                return redirect(url_for('admin.create_geography'))
+            try:
+                parent_id = int(parent_id)
+            except Exception:
+                flash('Invalid parent selection!', 'danger')
+                return redirect(url_for('admin.create_geography'))
+
+        try:
+            # Pre-check for duplicates
+            if entity == 'continent':
+                if Continent.query.filter_by(name=name).first():
+                    flash('A continent with this name already exists.', 'danger')
+                    return redirect(url_for('admin.create_geography'))
+                if Continent.query.filter_by(code=code).first():
+                    flash('A continent with this code already exists.', 'danger')
+                    return redirect(url_for('admin.create_geography'))
+                obj = Continent(name=name, code=code, status=GeographyStatus.ACTIVE)
+            elif entity == 'country':
+                if Country.query.filter_by(name=name, continent_id=parent_id).first():
+                    flash('A country with this name already exists in the selected continent.', 'danger')
+                    return redirect(url_for('admin.create_geography'))
+                if Country.query.filter_by(code=code).first():
+                    flash('A country with this code already exists.', 'danger')
+                    return redirect(url_for('admin.create_geography'))
+                obj = Country(name=name, code=code, continent_id=parent_id, status=GeographyStatus.ACTIVE)
+            elif entity == 'state':
+                if State.query.filter_by(name=name, country_id=parent_id).first():
+                    flash('A state with this name already exists in the selected country.', 'danger')
+                    return redirect(url_for('admin.create_geography'))
+                if State.query.filter_by(code=code, country_id=parent_id).first():
+                    flash('A state with this code already exists in the selected country.', 'danger')
+                    return redirect(url_for('admin.create_geography'))
+                obj = State(name=name, code=code, country_id=parent_id, status=GeographyStatus.ACTIVE)
+            elif entity == 'city':
+                # City name must be unique globally
+                if City.query.filter_by(name=name).first():
+                    flash('A city with this name already exists.', 'danger')
+                    return redirect(url_for('admin.create_geography'))
+                # Optionally, check for duplicate pin_code globally
+                # if pin_code and City.query.filter_by(pin_code=pin_code).first():
+                #     flash('A city with this pin code already exists.', 'danger')
+                #     return redirect(url_for('admin.create_geography'))
+                if not pin_code:
+                    pin_code = None
+                obj = City(name=name, state_id=parent_id, pin_code=pin_code, status=GeographyStatus.ACTIVE)
+            else:
+                flash('Invalid entity!', 'danger')
+                return redirect(url_for('admin.create_geography'))
+            db.session.add(obj)
+            db.session.commit()
+            flash(f'{entity.capitalize()} created!', 'success')
             return redirect(url_for('admin.manage_geography'))
-        db.session.add(obj)
-        db.session.commit()
-        flash(f'{entity.capitalize()} created!', 'success')
-        return redirect(url_for('admin.manage_geography'))
+        except Exception as e:
+            db.session.rollback()
+            import traceback
+            print(f"[ERROR] Exception during geography creation: {e}")
+            traceback.print_exc()
+            flash(f'Error creating {entity}: {str(e)}', 'danger')
+            return redirect(url_for('admin.create_geography'))
     continents = Continent.query.all()
     countries = Country.query.all()
     states = State.query.all()
@@ -731,10 +807,10 @@ def admin_charts():
         today = datetime.now().date()
         today_revenue = db.session.query(func.sum(Reservation.total_cost)).filter(
             func.date(Reservation.created_at) == today,
-            Reservation.status != ReservationStatus.CANCELLED
+            Reservation.status.in_([ReservationStatus.COMPLETED, ReservationStatus.CANCELLED])
         ).scalar() or 0
         total_revenue = db.session.query(func.sum(Reservation.total_cost)).filter(
-            Reservation.status != ReservationStatus.CANCELLED
+            Reservation.status.in_([ReservationStatus.COMPLETED, ReservationStatus.CANCELLED])
         ).scalar() or 0
         today_reservations = Reservation.query.filter(
             func.date(Reservation.created_at) == today
@@ -745,11 +821,12 @@ def admin_charts():
         total_cities = City.query.count()
         total_users = User.query.filter(User.username != 'admin').count()
         total_parking_lots = ParkingLot.query.count()
-        total_parking_spots = ParkingSpot.query.count()
+        total_parking_spots = ParkingSpot.query.filter_by(is_deleted=False).count()
         total_reservations = Reservation.query.count()
         available_spots = ParkingSpot.count_available()
         reserved_spots = ParkingSpot.count_reserved()
         occupied_spots = ParkingSpot.count_occupied()
+        occupancy_count = reserved_spots + occupied_spots
         stats = {
             'total_continents': total_continents,
             'total_countries': total_countries,
@@ -765,7 +842,7 @@ def admin_charts():
             'today_reservations': today_reservations,
             'today_revenue': float(today_revenue),
             'total_revenue': float(total_revenue),
-            'occupancy_rate': round((occupied_spots / total_parking_spots * 100), 2)
+            'occupancy_rate': round((occupancy_count / total_parking_spots * 100), 2)
                               if total_parking_spots > 0 else 0
         }
         return render_template('admin/charts.html', stats=stats)
@@ -773,25 +850,6 @@ def admin_charts():
         flash(f"Error loading charts: {str(e)}", "error")
         return render_template('admin/charts.html', stats={})
 
-@admin_bp.route('/approve-vacate/<int:reservation_id>', methods=['POST'])
-@require_permission(PermissionType.MANAGE_RESERVATIONS.value)
-def approve_vacate(reservation_id):
-    reservation = Reservation.query.get_or_404(reservation_id)
-    if reservation.status.value != 'pending_vacate':
-        return jsonify({'success': False, 'message': 'Reservation is not pending vacate.'}), 400
-    reservation.status = 'completed'
-    reservation.end_time = datetime.now()
-    # Calculate bill for time parked
-    if reservation.start_time:
-        duration = (reservation.end_time - reservation.start_time).total_seconds() / 3600
-        rate = reservation.parking_spot.parking_lot.price_per_hour if reservation.parking_spot and reservation.parking_spot.parking_lot else 0
-        reservation.total_cost = round(duration * rate, 2)
-    else:
-        reservation.total_cost = 0
-    if reservation.parking_spot:
-        reservation.parking_spot.free()
-    db.session.commit()
-    flash(f'Reservation for spot {reservation.parking_spot.spot_number} in lot {reservation.parking_spot.parking_lot.name} completed. Bill: ₹{reservation.total_cost}', 'success')
-    return jsonify({'success': True, 'message': f'Reservation completed. Bill: ₹{reservation.total_cost}'})
+
 
 

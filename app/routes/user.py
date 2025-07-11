@@ -486,7 +486,12 @@ def book_spot(spot_id):
             'success': True,
             'message': 'Spot booked successfully',
             'reservation_id': reservation.id,
-            'spot_number': spot.spot_number
+            'spot_number': spot.spot_number,
+            'lot_name': lot.name,
+            'vehicle_number': vehicle_number,
+            'start_time': reservation.start_time.strftime('%Y-%m-%d %H:%M'),
+            'price_per_hour': float(lot.price_per_hour),
+            'redirect_url': url_for('user.user_dashboard')
         })
         
     except Exception as e:

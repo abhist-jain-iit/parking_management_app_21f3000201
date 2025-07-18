@@ -9,8 +9,8 @@ USERS_DATA = [
         'phone': '+919876543210',
         'first_name': 'John',
         'last_name': 'Doe',
-        'gender': 'male',
-        'status': 'active',
+        'gender': 'MALE',
+        'status': 'ACTIVE',
         'password': 'John@1234'
     },
     {
@@ -19,8 +19,8 @@ USERS_DATA = [
         'phone': '+919812345678',
         'first_name': 'Jane',
         'last_name': 'Smith',
-        'gender': 'female',
-        'status': 'inactive',
+        'gender': 'FEMALE',
+        'status': 'INACTIVE',
         'password': 'Jane@1234'
     },
     {
@@ -29,8 +29,8 @@ USERS_DATA = [
         'phone': '+919800112233',
         'first_name': 'Alex',
         'last_name': 'Kumar',
-        'gender': 'other',
-        'status': 'pending',
+        'gender': 'OTHER',
+        'status': 'PENDING',
         'password': 'Alex@1234'
     },
     {
@@ -39,8 +39,8 @@ USERS_DATA = [
         'phone': '+919811122233',
         'first_name': 'Banned',
         'last_name': 'User',
-        'gender': 'male',
-        'status': 'banned',
+        'gender': 'MALE',
+        'status': 'BANNED',
         'password': 'Banned@1234'
     }
 ]
@@ -82,23 +82,23 @@ GEOGRAPHY_DATA = {
     },
     'cities': {
         'Karnataka': [
-            {'name': 'Bengaluru', 'pin_code': '560001'},
-            {'name': 'Mysuru', 'pin_code': '570001'}
+            {'name': 'Bengaluru', 'code': 'BEN', 'pin_code': '560001'},
+            {'name': 'Mysuru', 'code': 'MYS', 'pin_code': '570001'}
         ],
         'Maharashtra': [
-            {'name': 'Mumbai', 'pin_code': '400001'},
-            {'name': 'Pune', 'pin_code': '411001'}
+            {'name': 'Mumbai', 'code': 'MUM', 'pin_code': '400001'},
+            {'name': 'Pune', 'code': 'PUN', 'pin_code': '411001'}
         ],
         'Guangdong': [
-            {'name': 'Guangzhou', 'pin_code': '510000'},
-            {'name': 'Shenzhen', 'pin_code': '518000'}
+            {'name': 'Guangzhou', 'code': 'GUA', 'pin_code': '510000'},
+            {'name': 'Shenzhen', 'code': 'SHE', 'pin_code': '518000'}
         ],
         'Bavaria': [
-            {'name': 'Munich', 'pin_code': '80331'},
-            {'name': 'Nuremberg', 'pin_code': '90402'}
+            {'name': 'Munich', 'code': 'MUN', 'pin_code': '80331'},
+            {'name': 'Nuremberg', 'code': 'NUR', 'pin_code': '90402'}
         ],
         'Île-de-France': [
-            {'name': 'Paris', 'pin_code': '75000'}
+            {'name': 'Paris', 'code': 'PAR', 'pin_code': '75000'}
         ]
     }
 }

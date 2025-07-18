@@ -96,6 +96,7 @@ class City(BaseModel):
     __tablename__ = "cities"
     
     name = db.Column(db.String(100), nullable=False)
+    code = db.Column(db.String(10), nullable=False)
     state_id = db.Column(db.Integer, db.ForeignKey('states.id'), nullable=False)
     pin_code = db.Column(db.String(20), nullable=True)
     status = db.Column(db.Enum(GeographyStatus), default=GeographyStatus.ACTIVE, nullable=False)   
@@ -103,7 +104,10 @@ class City(BaseModel):
     state = db.relationship('State', back_populates='cities')
     parking_lots = db.relationship('ParkingLot', back_populates='city', cascade='all, delete-orphan')
     
-    __table_args__ = (db.UniqueConstraint('name', 'state_id', name='unique_city_per_state'),)
+    __table_args__ = (
+        db.UniqueConstraint('name', 'state_id', name='unique_city_per_state'),
+        db.UniqueConstraint('code', 'state_id', name='unique_city_code_per_state'),
+    )
     
     def get_full_address(self):
         if self.state and self.state.country:
@@ -114,6 +118,7 @@ class City(BaseModel):
         base_dict = super().to_dict()
         base_dict.update({
             "name": self.name,
+            "code": self.code,
             "state_name": self.state.name if self.state else None,
             "country_name": self.state.country.name if self.state and self.state.country else None,
             "pin_code": self.pin_code,

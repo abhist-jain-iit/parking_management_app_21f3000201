@@ -199,16 +199,22 @@ def create_sample_parking_data():
                 )
                 db.session.add(parking_lot)
                 db.session.flush()
-                
                 # Create individual parking spots in this lot
                 for i in range(1, lot_data['total_spots'] + 1):
+                    if i == 1:
+                        status = SpotStatus.OCCUPIED
+                    elif i == 2:
+                        status = SpotStatus.RESERVED
+                    elif i == 3:
+                        status = SpotStatus.UNDER_MAINTENANCE
+                    else:
+                        status = SpotStatus.AVAILABLE
                     parking_spot = ParkingSpot(
                         spot_number=f"A{i:03d}",
                         parking_lot_id=parking_lot.id,
-                        status=SpotStatus.AVAILABLE
+                        status=status
                     )
                     db.session.add(parking_spot)
-    
     db.session.commit()
 
 def create_sample_users():

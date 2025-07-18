@@ -68,6 +68,11 @@
         <input type="text" class="form-control" name="name" id="city-name" required>
       </div>
       <div class="form-group mb-3">
+        <label for="code">City Code</label>
+        <input type="text" class="form-control" name="code" id="city-code" required>
+        <small class="form-text text-muted">Code must be unique within the selected state (e.g., BLR for Bangalore).</small>
+      </div>
+      <div class="form-group mb-3">
         <label for="pin_code">Pin Code</label>
         <input type="text" class="form-control" name="pin_code" id="city-pin-code">
       </div>
@@ -93,21 +98,19 @@ function showFields() {
   document.getElementById('state-fields').style.display = (entity === 'state') ? 'block' : 'none';
   document.getElementById('city-fields').style.display = (entity === 'city') ? 'block' : 'none';
 
-  // Disable all inputs in hidden sections
+  // Enable all inputs in the visible section, disable in others
   var allSections = ['continent', 'country', 'state', 'city'];
   allSections.forEach(function(type) {
     var section = document.getElementById(type + '-fields');
     var inputs = section.querySelectorAll('input, select');
-    inputs.forEach(function(input) {
-      if (entity === type) {
-        input.disabled = false;
-      } else {
-        input.disabled = true;
-      }
-    });
+    if (entity === type) {
+      inputs.forEach(function(input) { input.disabled = false; });
+    } else {
+      inputs.forEach(function(input) { input.disabled = true; });
+    }
   });
 }
-// Run on page load in case of browser autofill
+// Run on page load in case of browser autofill or failed submission
 window.onload = showFields;
 </script>
 {% endblock %} 

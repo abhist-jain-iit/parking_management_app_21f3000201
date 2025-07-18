@@ -58,7 +58,7 @@
       <ul class="list-group">
         {% for city in cities %}
         <li class="list-group-item d-flex justify-content-between align-items-center">
-          {{ city.name }} ({{ city.pin_code or '' }})
+          {{ city.name }} ({{ city.code }})
           <span>
             <a href="{{ url_for('admin.edit_geography', entity='city', entity_id=city.id) }}" class="btn btn-sm btn-warning">Edit</a>
             <form action="{{ url_for('admin.delete_geography', entity='city', entity_id=city.id) }}" method="post" style="display:inline;">

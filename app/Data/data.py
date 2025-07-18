@@ -109,63 +109,63 @@ parking_lots_data = [
         'name': 'Central Mall Parking',
         'address': 'MG Road, Bengaluru, Karnataka',
         'city_name': 'Bengaluru',
-        'total_spots': 50,
+        'total_spots': 10,
         'price_per_hour': Decimal('25.00')
     },
     {
         'name': 'Tech Park Parking',
         'address': 'Electronic City, Bengaluru, Karnataka',
         'city_name': 'Bengaluru',
-        'total_spots': 100,
+        'total_spots': 10,
         'price_per_hour': Decimal('20.00')
     },
     {
         'name': 'Airport Parking',
         'address': 'Kempegowda International Airport, Bengaluru',
         'city_name': 'Bengaluru',
-        'total_spots': 200,
+        'total_spots': 10,
         'price_per_hour': Decimal('50.00')
     },
     {
         'name': 'Phoenix Mall Parking',
         'address': 'Whitefield, Bengaluru, Karnataka',
         'city_name': 'Bengaluru',
-        'total_spots': 80,
+        'total_spots': 10,
         'price_per_hour': Decimal('30.00')
     },
     {
         'name': 'Mumbai Central Parking',
         'address': 'Dadar, Mumbai, Maharashtra',
         'city_name': 'Mumbai',
-        'total_spots': 120,
+        'total_spots': 10,
         'price_per_hour': Decimal('40.00')
     },
     {
         'name': 'Pune Station Parking',
         'address': 'Pune Railway Station, Pune, Maharashtra',
         'city_name': 'Pune',
-        'total_spots': 60,
+        'total_spots': 10,
         'price_per_hour': Decimal('22.00')
     },
     {
         'name': 'Guangzhou Tower Parking',
         'address': 'Canton Tower, Guangzhou, Guangdong',
         'city_name': 'Guangzhou',
-        'total_spots': 90,
+        'total_spots': 10,
         'price_per_hour': Decimal('35.00')
     },
     {
         'name': 'Munich Hauptbahnhof Parking',
         'address': 'Central Station, Munich, Bavaria',
         'city_name': 'Munich',
-        'total_spots': 70,
+        'total_spots': 10,
         'price_per_hour': Decimal('45.00')
     },
     {
         'name': 'Paris Centre Parking',
         'address': 'Châtelet, Paris, Île-de-France',
         'city_name': 'Paris',
-        'total_spots': 110,
+        'total_spots': 10,
         'price_per_hour': Decimal('55.00')
     }
 ]

@@ -184,10 +184,25 @@ def edit_user(user_id):
     if request.method == 'POST':
         print(f"Edit User: Updating user {user_id}")
         data = request.form
-        user.username = data.get('username', user.username)
-        user.email = data.get('email', user.email)
-        user.first_name = data.get('first_name', user.first_name)
-        user.last_name = data.get('last_name', user.last_name)
+        new_username = data.get('username', user.username)
+        new_email = data.get('email', user.email)
+        new_phone = data.get('phone', user.phone) if hasattr(user, 'phone') else None
+        new_first_name = data.get('first_name', user.first_name)
+        new_last_name = data.get('last_name', user.last_name)
+        # Check for duplicate email (excluding current user)
+        if User.query.filter(User.email == new_email, User.id != user.id).first():
+            flash('A user with this email already exists. Please use a different email.', 'danger')
+            return render_template('admin/users/edit.html', user=user)
+        # Check for duplicate phone (excluding current user)
+        if new_phone and User.query.filter(User.phone == new_phone, User.id != user.id).first():
+            flash('A user with this phone number already exists. Please use a different phone number.', 'danger')
+            return render_template('admin/users/edit.html', user=user)
+        user.username = new_username
+        user.email = new_email
+        if new_phone:
+            user.phone = new_phone
+        user.first_name = new_first_name
+        user.last_name = new_last_name
         db.session.commit()
         flash('User updated successfully!', 'success')
         return redirect(url_for('admin.view_user_details', user_id=user_id))
@@ -237,6 +252,10 @@ def create_parking_lot():
         city_id = int(data.get('city_id'))
         price_per_hour = float(data.get('price_per_hour', 0))
         total_spots = int(data.get('total_spots', 0))
+        # Check for duplicate lot with same name, city, and address
+        if ParkingLot.query.filter_by(name=name, city_id=city_id, address=address).first():
+            flash('A parking lot with this name, address, and city already exists. Please choose another.', 'danger')
+            return redirect(url_for('admin.create_parking_lot'))
         lot = ParkingLot(
             name=name,
             address=address,
@@ -271,9 +290,16 @@ def edit_parking_lot(lot_id):
     lot = ParkingLot.query.get_or_404(lot_id)
     if request.method == 'POST':
         data = request.form
-        lot.name = data.get('name', lot.name)
-        lot.address = data.get('address', lot.address)
-        lot.city_id = int(data.get('city_id', lot.city_id))
+        new_name = data.get('name', lot.name)
+        new_address = data.get('address', lot.address)
+        new_city_id = int(data.get('city_id', lot.city_id))
+        # Check for duplicate lot with same name, city, and address (excluding current lot)
+        if ParkingLot.query.filter(ParkingLot.name == new_name, ParkingLot.city_id == new_city_id, ParkingLot.address == new_address, ParkingLot.id != lot.id).first():
+            flash('A parking lot with this name, address, and city already exists. Please choose another.', 'danger')
+            return redirect(url_for('admin.edit_parking_lot', lot_id=lot.id))
+        lot.name = new_name
+        lot.address = new_address
+        lot.city_id = new_city_id
         lot.total_spots = int(data.get('total_spots', lot.total_spots))
         lot.price_per_hour = float(data.get('price_per_hour', lot.price_per_hour))
         status_str = data.get('status', lot.status)
@@ -292,16 +318,17 @@ def edit_parking_lot(lot_id):
 @refresh_db_session
 def delete_parking_lot(lot_id):
     lot = ParkingLot.query.get_or_404(lot_id)
-    # Only allow deletion if all spots are available (not occupied or reserved) and not deleted
-    non_empty_spots = ParkingSpot.query.filter(
+    # Only block deletion if any spot is reserved or occupied and not deleted
+    blocking_spots = ParkingSpot.query.filter(
         ParkingSpot.parking_lot_id == lot.id,
         ParkingSpot.is_deleted == False,
-        ParkingSpot.status != 'available'
-    ).count()
-    if non_empty_spots > 0:
-        flash('Cannot delete lot with non-empty (occupied or reserved) spots!', 'danger')
+        ParkingSpot.status.in_([SpotStatus.OCCUPIED.value, SpotStatus.RESERVED.value])
+    ).all()
+    if blocking_spots:
+        print(f"[DEBUG] Cannot delete lot {lot.id}. Blocking spots: {[s.id for s in blocking_spots]}")
+        flash('Cannot delete lot with reserved or occupied spots!', 'danger')
         return redirect(url_for('admin.view_parking_lot_details', lot_id=lot.id))
-    # Delete all spots in this lot (soft delete if needed)
+    # Delete all spots in this lot (hard delete)
     ParkingSpot.query.filter_by(parking_lot_id=lot.id).delete()
     db.session.delete(lot)
     db.session.commit()
@@ -429,13 +456,10 @@ def edit_parking_spot(spot_id):
     spot = ParkingSpot.query.get_or_404(spot_id)
     if request.method == 'POST':
         data = request.form
-        status_str = data.get('status', spot.status)
-        if isinstance(status_str, str):
-            spot.status = SpotStatus[status_str.upper()]
-        else:
-            spot.status = status_str
+        new_spot_number = data.get('spot_number', spot.spot_number)
+        spot.spot_number = new_spot_number
         db.session.commit()
-        flash('Spot updated!', 'success')
+        flash('Spot number updated!', 'success')
         return redirect(url_for('admin.view_parking_spot_details', spot_id=spot.id))
     return render_template('admin/parking/edit_spot.html', spot=spot)
 
@@ -575,8 +599,8 @@ def update_spot_status(spot_id):
             error_msg = 'Invalid status provided.'
             if request.content_type == 'application/json':
                 return jsonify({'success': False, 'error': error_msg}), 400
-            flash(error_msg, 'error')
-            return redirect(url_for('admin.manage_parking_spots'))
+            flash(error_msg, 'danger')
+            return redirect(url_for('admin.view_parking_spot_details', spot_id=spot_id))
         # Check if spot can be changed to the new status
         if new_status == 'available' and parking_spot.status in ['occupied', 'reserved']:
             # Check for active reservations
@@ -588,33 +612,33 @@ def update_spot_status(spot_id):
                 error_msg = 'Cannot set spot to available. It has active reservations.'
                 if request.content_type == 'application/json':
                     return jsonify({'success': False, 'error': error_msg}), 400
-                flash(error_msg, 'error')
-                return redirect(url_for('admin.manage_parking_spots'))
+                flash(error_msg, 'danger')
+                return redirect(url_for('admin.view_parking_spot_details', spot_id=spot_id))
         # Update status
         old_status = parking_spot.status
-        parking_spot.status = new_status
+        parking_spot.status = SpotStatus[new_status.upper()]
         parking_spot.updated_at = datetime.utcnow()
         db.session.commit()
-        success_msg = f'Parking spot "{parking_spot.spot_number}" status updated from {old_status} to {new_status}.'
+        # Only flash a single success message
+        flash('Parking spot status updated successfully.', 'success')
         if request.content_type == 'application/json':
             return jsonify({
                 'success': True,
-                'message': success_msg,
+                'message': 'Parking spot status updated successfully.',
                 'parking_spot': {
                     'id': parking_spot.id,
                     'spot_number': parking_spot.spot_number,
-                    'status': parking_spot.status,
-                    'old_status': old_status
+                    'status': parking_spot.status.value,
+                    'old_status': old_status.value if hasattr(old_status, "value") else old_status
                 }
             })
-        flash(success_msg, 'success')
     except Exception as e:
         db.session.rollback()
         error_msg = f'Error updating parking spot status: {str(e)}'
         if request.content_type == 'application/json':
             return jsonify({'success': False, 'error': error_msg}), 500
-        flash(error_msg, 'error')
-    return redirect(url_for('admin.manage_parking_spots'))
+        flash(error_msg, 'danger')
+    return redirect(url_for('admin.view_parking_spot_details', spot_id=spot_id))
 
 # --- Geography Management (Admin CRUD) ---
 @admin_bp.route('/geography', methods=['GET'])
@@ -665,6 +689,10 @@ def create_geography():
         try:
             # Pre-check for duplicates
             if entity == 'continent':
+                # Check for exact duplicate
+                if Continent.query.filter_by(name=name, code=code, status=GeographyStatus.ACTIVE).first():
+                    flash('An identical continent already exists.', 'danger')
+                    return redirect(url_for('admin.create_geography'))
                 if Continent.query.filter_by(name=name).first():
                     flash('A continent with this name already exists.', 'danger')
                     return redirect(url_for('admin.create_geography'))
@@ -673,6 +701,10 @@ def create_geography():
                     return redirect(url_for('admin.create_geography'))
                 obj = Continent(name=name, code=code, status=GeographyStatus.ACTIVE)
             elif entity == 'country':
+                # Check for exact duplicate
+                if Country.query.filter_by(name=name, code=code, continent_id=parent_id, status=GeographyStatus.ACTIVE).first():
+                    flash('An identical country already exists.', 'danger')
+                    return redirect(url_for('admin.create_geography'))
                 if Country.query.filter_by(name=name, continent_id=parent_id).first():
                     flash('A country with this name already exists in the selected continent.', 'danger')
                     return redirect(url_for('admin.create_geography'))
@@ -681,6 +713,10 @@ def create_geography():
                     return redirect(url_for('admin.create_geography'))
                 obj = Country(name=name, code=code, continent_id=parent_id, status=GeographyStatus.ACTIVE)
             elif entity == 'state':
+                # Check for exact duplicate
+                if State.query.filter_by(name=name, code=code, country_id=parent_id, status=GeographyStatus.ACTIVE).first():
+                    flash('An identical state already exists.', 'danger')
+                    return redirect(url_for('admin.create_geography'))
                 if State.query.filter_by(name=name, country_id=parent_id).first():
                     flash('A state with this name already exists in the selected country.', 'danger')
                     return redirect(url_for('admin.create_geography'))
@@ -689,17 +725,19 @@ def create_geography():
                     return redirect(url_for('admin.create_geography'))
                 obj = State(name=name, code=code, country_id=parent_id, status=GeographyStatus.ACTIVE)
             elif entity == 'city':
-                # City name must be unique globally
-                if City.query.filter_by(name=name).first():
-                    flash('A city with this name already exists.', 'danger')
+                # Check for exact duplicate
+                if City.query.filter_by(name=name, code=code, state_id=parent_id, pin_code=pin_code, status=GeographyStatus.ACTIVE).first():
+                    flash('An identical city already exists.', 'danger')
                     return redirect(url_for('admin.create_geography'))
-                # Optionally, check for duplicate pin_code globally
-                # if pin_code and City.query.filter_by(pin_code=pin_code).first():
-                #     flash('A city with this pin code already exists.', 'danger')
-                #     return redirect(url_for('admin.create_geography'))
+                if City.query.filter_by(code=code).first():
+                    flash('A city with this code already exists. Please try another code.', 'danger')
+                    return redirect(url_for('admin.create_geography'))
+                if pin_code and City.query.filter_by(pin_code=pin_code).first():
+                    flash('A city with this pin code already exists. Please try another pin code.', 'danger')
+                    return redirect(url_for('admin.create_geography'))
                 if not pin_code:
                     pin_code = None
-                obj = City(name=name, state_id=parent_id, pin_code=pin_code, status=GeographyStatus.ACTIVE)
+                obj = City(name=name, code=code, state_id=parent_id, pin_code=pin_code, status=GeographyStatus.ACTIVE)
             else:
                 flash('Invalid entity!', 'danger')
                 return redirect(url_for('admin.create_geography'))
@@ -727,16 +765,47 @@ def edit_geography(entity, entity_id):
     obj = model_map[entity].query.get_or_404(entity_id)
     if request.method == 'POST':
         data = request.form
-        obj.name = data.get('name', obj.name)
+        new_name = data.get('name', obj.name)
+        new_code = data.get('code', obj.code) if hasattr(obj, 'code') else None
+        new_parent_id = data.get('parent_id')
+        new_pin_code = data.get('pin_code', obj.pin_code) if entity == 'city' else None
+
+        # Duplicate checks
+        if entity == 'continent':
+            duplicate_all = Continent.query.filter(Continent.name == new_name, Continent.code == new_code, Continent.status == GeographyStatus.ACTIVE, Continent.id != obj.id).first()
+            if duplicate_all:
+                flash('An identical continent already exists.', 'danger')
+                return render_template('admin/geography/edit.html', entity=entity, obj=obj, continents=Continent.query.all(), countries=Country.query.all(), states=State.query.all())
+        elif entity == 'country':
+            parent_id = int(new_parent_id)
+            duplicate_all = Country.query.filter(Country.name == new_name, Country.code == new_code, Country.continent_id == parent_id, Country.status == GeographyStatus.ACTIVE, Country.id != obj.id).first()
+            if duplicate_all:
+                flash('An identical country already exists.', 'danger')
+                return render_template('admin/geography/edit.html', entity=entity, obj=obj, continents=Continent.query.all(), countries=Country.query.all(), states=State.query.all())
+        elif entity == 'state':
+            parent_id = new_parent_id or obj.country_id
+            duplicate_all = State.query.filter(State.name == new_name, State.code == new_code, State.country_id == parent_id, State.status == GeographyStatus.ACTIVE, State.id != obj.id).first()
+            if duplicate_all:
+                flash('An identical state already exists.', 'danger')
+                return render_template('admin/geography/edit.html', entity=entity, obj=obj, continents=Continent.query.all(), countries=Country.query.all(), states=State.query.all())
+        elif entity == 'city':
+            parent_id = new_parent_id or obj.state_id
+            duplicate_all = City.query.filter(City.name == new_name, City.code == new_code, City.state_id == parent_id, City.pin_code == new_pin_code, City.status == GeographyStatus.ACTIVE, City.id != obj.id).first()
+            if duplicate_all:
+                flash('An identical city already exists.', 'danger')
+                return render_template('admin/geography/edit.html', entity=entity, obj=obj, continents=Continent.query.all(), countries=Country.query.all(), states=State.query.all())
+
+        # If no duplicates, update the object
+        obj.name = new_name
         if hasattr(obj, 'code'):
-            obj.code = data.get('code', obj.code)
+            obj.code = new_code
         if entity == 'country':
-            obj.continent_id = data.get('parent_id', obj.continent_id)
+            obj.continent_id = int(new_parent_id) if new_parent_id else obj.continent_id
         if entity == 'state':
-            obj.country_id = data.get('parent_id', obj.country_id)
+            obj.country_id = new_parent_id or obj.country_id
         if entity == 'city':
-            obj.state_id = data.get('parent_id', obj.state_id)
-            obj.pin_code = data.get('pin_code', obj.pin_code)
+            obj.state_id = new_parent_id or obj.state_id
+            obj.pin_code = new_pin_code
         db.session.commit()
         flash(f'{entity.capitalize()} updated!', 'success')
         return redirect(url_for('admin.manage_geography'))

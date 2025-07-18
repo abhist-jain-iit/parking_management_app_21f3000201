@@ -214,7 +214,12 @@ def create_sample_parking_data():
 def create_sample_users():
     """Create sample user accounts for testing"""
     for user_data in USERS_DATA:
-        existing_user = User.query.filter_by(username=user_data['username']).first()
+        # Check for existing user by username, email, or phone
+        existing_user = User.query.filter(
+            (User.username == user_data['username']) |
+            (User.email == user_data['email']) |
+            (User.phone == user_data['phone'])
+        ).first()
         if not existing_user:
             # Create user account
             user = User(
@@ -229,7 +234,6 @@ def create_sample_users():
             user.set_password(user_data['password'])
             db.session.add(user)
             db.session.flush()
-            
             # Give user the regular user role
             user_role = Role.query.filter_by(name=RoleType.USER.value).first()
             if user_role:
@@ -238,7 +242,6 @@ def create_sample_users():
                     role_id=user_role.id
                 )
                 db.session.add(user_role_assignment)
-    
     db.session.commit()
 
 def init_database(app):

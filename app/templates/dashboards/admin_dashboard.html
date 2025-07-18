@@ -175,7 +175,7 @@
 <!-- Management Tabs for Quick CRUD (correct order) -->
 <ul class="nav nav-tabs mb-3" id="adminTab" role="tablist">
   <li class="nav-item" role="presentation">
-    <button class="nav-link active" id="geo-tab" data-bs-toggle="tab" data-bs-target="#geo" type="button" role="tab">Geography</button>
+    <button class="nav-link active" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button" role="tab">Users</button>
   </li>
   <li class="nav-item" role="presentation">
     <button class="nav-link" id="lots-tab" data-bs-toggle="tab" data-bs-target="#lots" type="button" role="tab">Parking Lots</button>
@@ -184,7 +184,7 @@
     <button class="nav-link" id="spots-tab" data-bs-toggle="tab" data-bs-target="#spots" type="button" role="tab">Parking Spots</button>
   </li>
   <li class="nav-item" role="presentation">
-    <button class="nav-link" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button" role="tab">Users</button>
+    <button class="nav-link" id="geo-tab" data-bs-toggle="tab" data-bs-target="#geo" type="button" role="tab">Geography</button>
   </li>
 </ul>
 <div class="tab-content mb-4" id="adminTabContent">
@@ -207,7 +207,7 @@
         </tr>
       </thead>
       <tbody>
-        {% for user in users %}
+        {% for user in users[:5] %}
         <tr>
           <td>{{ user.username }}</td>
           <td>{{ user.email }}</td>
@@ -226,6 +226,9 @@
         {% endif %}
       </tbody>
     </table>
+    <div class="text-end">
+      <a href="{{ url_for('admin.manage_users') }}" class="btn btn-link">View All Users</a>
+    </div>
   </div>
   <!-- Lots Tab -->
   <div class="tab-pane fade" id="lots" role="tabpanel">
@@ -246,7 +249,7 @@
         </tr>
       </thead>
       <tbody>
-        {% for lot in lots %}
+        {% for lot in lots[:5] %}
         <tr>
           <td>{{ lot.name }}</td>
           <td>{{ lot.city.name if lot.city else '' }}</td>
@@ -265,6 +268,9 @@
         {% endif %}
       </tbody>
     </table>
+    <div class="text-end">
+      <a href="{{ url_for('admin.list_lots') }}" class="btn btn-link">View All Lots</a>
+    </div>
   </div>
   <!-- Spots Tab -->
   <div class="tab-pane fade" id="spots" role="tabpanel">
@@ -284,7 +290,7 @@
         </tr>
       </thead>
       <tbody>
-        {% for spot in spots %}
+        {% for spot in spots[:5] %}
         <tr>
           <td>{{ spot.spot_number }}</td>
           <td>{{ spot.parking_lot.name if spot.parking_lot else '' }}</td>
@@ -303,6 +309,9 @@
         {% endif %}
       </tbody>
     </table>
+    <div class="text-end">
+      <a href="{{ url_for('admin.list_spots') }}" class="btn btn-link">View All Spots</a>
+    </div>
   </div>
   <!-- Geography Tab -->
   <div class="tab-pane fade" id="geo" role="tabpanel">
@@ -317,7 +326,7 @@
       <div class="col-md-3">
         <h6>Continents</h6>
         <ul class="list-group mb-2">
-          {% for continent in continents %}
+          {% for continent in continents[:5] %}
           <li class="list-group-item d-flex justify-content-between align-items-center">
             {{ continent.name }} ({{ continent.code }})
             <span>
@@ -336,7 +345,7 @@
       <div class="col-md-3">
         <h6>Countries</h6>
         <ul class="list-group mb-2">
-          {% for country in countries %}
+          {% for country in countries[:5] %}
           <li class="list-group-item d-flex justify-content-between align-items-center">
             {{ country.name }} ({{ country.code }})
             <span>
@@ -355,7 +364,7 @@
       <div class="col-md-3">
         <h6>States</h6>
         <ul class="list-group mb-2">
-          {% for state in states %}
+          {% for state in states[:5] %}
           <li class="list-group-item d-flex justify-content-between align-items-center">
             {{ state.name }} ({{ state.code }})
             <span>
@@ -374,7 +383,7 @@
       <div class="col-md-3">
         <h6>Cities</h6>
         <ul class="list-group mb-2">
-          {% for city in cities %}
+          {% for city in cities[:5] %}
           <li class="list-group-item d-flex justify-content-between align-items-center">
             {{ city.name }} ({{ city.pin_code or '' }})
             <span>
@@ -390,6 +399,9 @@
           {% endif %}
         </ul>
       </div>
+    </div>
+    <div class="text-end">
+      <a href="{{ url_for('admin.manage_geography') }}" class="btn btn-link">View All Geography</a>
     </div>
   </div>
 </div>
@@ -434,5 +446,19 @@ function showFlash(msg, type) {
   $('.container').first().prepend(flash);
   setTimeout(function() { flash.alert('close'); }, 4000);
 }
+</script>
+<script>
+// Ensure correct tab is shown on reload or after login
+$(function() {
+  // Activate the tab if hash is present in URL
+  var hash = window.location.hash;
+  if (hash && $(hash + '-tab').length) {
+    $(hash + '-tab').tab('show');
+  }
+  // Save tab on click
+  $('button[data-bs-toggle="tab"]').on('shown.bs.tab', function(e) {
+    window.location.hash = e.target.getAttribute('data-bs-target');
+  });
+});
 </script>
 {% endblock %}

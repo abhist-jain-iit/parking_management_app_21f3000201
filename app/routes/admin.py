@@ -745,6 +745,10 @@ def create_geography():
             db.session.commit()
             flash(f'{entity.capitalize()} created!', 'success')
             return redirect(url_for('admin.manage_geography'))
+        except IntegrityError as e:
+            db.session.rollback()
+            flash('A record with this name or code already exists. Please use a different value.', 'danger')
+            return redirect(url_for('admin.create_geography'))
         except Exception as e:
             db.session.rollback()
             import traceback
@@ -806,9 +810,18 @@ def edit_geography(entity, entity_id):
         if entity == 'city':
             obj.state_id = new_parent_id or obj.state_id
             obj.pin_code = new_pin_code
-        db.session.commit()
-        flash(f'{entity.capitalize()} updated!', 'success')
-        return redirect(url_for('admin.manage_geography'))
+        try:
+            db.session.commit()
+            flash(f'{entity.capitalize()} updated!', 'success')
+            return redirect(url_for('admin.manage_geography'))
+        except IntegrityError as e:
+            db.session.rollback()
+            flash('A record with this name or code already exists. Please use a different value.', 'danger')
+            return render_template('admin/geography/edit.html', entity=entity, obj=obj, continents=Continent.query.all(), countries=Country.query.all(), states=State.query.all())
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error updating {entity}: {str(e)}', 'danger')
+            return render_template('admin/geography/edit.html', entity=entity, obj=obj, continents=Continent.query.all(), countries=Country.query.all(), states=State.query.all())
     continents = Continent.query.all()
     countries = Country.query.all()
     states = State.query.all()
